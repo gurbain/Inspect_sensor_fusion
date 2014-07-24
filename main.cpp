@@ -27,35 +27,39 @@ int main(int argc, char **argv) {
 
 	// Create
 	ORF tof;
-	Cameras stereo;
+	//Cameras stereo;
 	
 	// Initialize
-	tof.initOrf(0,0,0,0,"192.168.1.42");
-	stereo.initTwoCameras();
+	tof.initOrf();
+	//stereo.initTwoCameras();
 	
-	return 0;
-}
-/*	//cam2.startTwoCameras();
+
+	//cam2.startTwoCameras();
 	//namedWindow("a");
 	
 	int flag;
-	//while(true) {
+	while(true) {
 		//Mat leftNewImageFrame, rightNewImageFrame;
 		
 		//cam2.captureTwoImages(leftNewImageFrame, rightNewImageFrame, &cam2.rightImgNum, &cam2.leftImgNum, flag);
 
-		//imshow("a", rightNewImageFrame);
-// 		// Change parameters
-// 		changeParams(cam);
-// 		
-// 		// Capture ToF images
-// 		Mat image_d, image_i, image_c, image_d16;
-// 		cam.readData(image_d, image_i, image_c);
-// 		
-// 		// Wait for user to close the software
-// 		int key = waitKey(1);
-// 		if (key == 2) break;
-	//}
+		
+		// Change parameters
+		//changeParams(cam);
+		
+		// Capture ToF images
+		Mat depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
+		int retVal = tof.captureOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame);
+		if (retVal==-1)
+			break;
+		imshow("Depth", depthNewImageFrame);
+		imshow("Intensity", visualNewImageFrame);
+		imshow("Confidency", confidenceNewImageFrame);
+		
+		// Wait for user to close the software
+		int key = waitKey(1);
+		if (key == 2) break;
+	}
 
 // 	try{
 // 		DEBUG<<"arg"<<endl;
@@ -75,4 +79,7 @@ int main(int argc, char **argv) {
 // 		}
 // 	} catch(UeyeOpenCVException& e) {
 // 		ERROR << e.what() << endl;
-// 	}*/
+// 	}
+	
+		return 0;
+}

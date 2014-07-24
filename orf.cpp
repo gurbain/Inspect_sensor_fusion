@@ -19,7 +19,9 @@ using namespace std;
 //////////////////////////
 //////  Constructor //////
 //////////////////////////
-ORF::ORF(bool use_filter) : orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL)
+ORF::ORF(bool use_filter) : 
+orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
+imgWidth(640), imgHeight(480)
 {}
 
 //////////////////////////
@@ -33,7 +35,7 @@ ORF::~ORF()
 //////////////////////////
 //////     Open     //////
 //////////////////////////
-int ORF::initOrf(int auto_exposure, int integration_time, int modulation_freq, int amp_threshold, string ether_addr) 
+int ORF::initOrf(bool auto_exposure, int integration_time, int modulation_freq, int amp_threshold, string ether_addr) 
 {
 	// Open camera handling exceptions
 	int res = 0;
@@ -59,19 +61,22 @@ int ORF::initOrf(int auto_exposure, int integration_time, int modulation_freq, i
 
 	int inr_  = SR_GetImageList (orfCam_, &imgEntryArray_);
 	char buffer [50];
-	sprintf (buffer, "SwissRanger device open. Number of images available: %d\n", inr_); 
-	DEBUG<<buffer;
+	sprintf (buffer, "SwissRanger device open. Number of images available: %d", inr_); 
+	DEBUG<<buffer<<endl;
 	if ( (cols_ != ORF_COLS) || (rows_ != ORF_ROWS) || (inr_ < ORF_IMAGES) || (imgEntryArray_ == 0) ) {
 		SafeCleanup();
 		char buffer[100];
-		sprintf(buffer, "Invalid data images: %d %dx%d images received from camera!\nExpected %d %dx%d images.\n", inr_, cols_, rows_, ORF_IMAGES, ORF_COLS, ORF_ROWS);
+		sprintf(buffer, "Invalid data images: %d %dx%d images received from camera! Expected %d %dx%d images.", inr_, cols_, rows_, ORF_IMAGES, ORF_COLS, ORF_ROWS);
 		DEBUG<<buffer<<endl;
 		return (-1);
 	}
 
 	// Set every parameters
-	if (auto_exposure >= 0)
-		setAutoExposure(auto_exposure);
+	if (auto_exposure==true) {
+		setAutoExposure(true);
+	} else {
+		setAutoExposure(false);
+	}
 	if (integration_time >=0 && integration_time != getIntegrationTime())
 		setIntegrationTime(integration_time);
 	if (modulation_freq >=0 && modulation_freq != getModulationFrequency())
@@ -127,13 +132,13 @@ int ORF::closeOrf()
 //////////////////////////
 //////   Read Data  //////
 //////////////////////////
-void ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame)
+int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame)
 {
 	// Verify the handle integrity
 	SR_SetMode(orfCam_, AM_COR_FIX_PTRN|AM_CONV_GRAY|AM_DENOISE_ANF|AM_CONF_MAP);
 	if (orfCam_ == NULL) {
 		ERROR<<"Read attempted on NULL SwissRanger port!"<<endl;
-		return;
+		return -1;
 	}
 
 	// Acquire data with time stamp
@@ -143,7 +148,7 @@ void ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& con
 	time_t time2 = time(0);
 	if (res < 0) {
 		ERROR<<"Unable to capture data"<<endl;
-		return;
+		return -1;
 	}
 	time_t timestamp = ((int)time1 + (int)time2) / 2;
 
@@ -151,18 +156,43 @@ void ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& con
 	res = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
 
 	// Fill the pictures
-	Mat depth(ORF_ROWS, ORF_COLS, CV_16UC1, SR_GetImage (orfCam_, 0));
-	Mat intensity(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 1));
+	Mat depth(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 0));
+	Mat visual(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 1));
 	Mat confidence(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 2));
-	Size newSize(ORF_COLS*3, ORF_ROWS*3);
-	resize(depth, depth, newSize);
-	resize(intensity, intensity, newSize);
-	resize(confidence, confidence, newSize);
-	imshow("Depth", depth);
-	imshow("Intensity", intensity);
-	imshow("Confidence", confidence);
+	
+	// Image resizing
+	Size newSize(imgWidth, imgHeight);
+	resize(depth, depthNewImageFrame, newSize);
+	resize(visual, visualNewImageFrame, newSize);
+	resize(confidence, confidenceNewImageFrame, newSize);
+	
+	// Image processing
+// 	normalize(visualNewImageFrame, visualNewImageFrame, 0, 255, NORM_MINMAX, CV_8UC1);
+// 	equalizeHist(visualNewImageFrame, visualNewImageFrame);
+	// 	Mat depth2, depth3;
+//  	depth.convertTo(depth, CV_8U, 0.00390625);
+// 	visual.convertTo(visual, CV_8U, 0.00390625);
+// 	confidence.convertTo(confidence, CV_8U, 0.00390625);
+	//GaussianBlur(depth, depth2,Size(15,15), 1.0);
+	//GaussianBlur(depth, depth3,Size(30,30), 1.0);
+	//normalize(depth, depth, 0, 255, NORM_MINMAX, CV_8UC1);
+// 	normalize(depth2, depth2, 0, 255, NORM_MINMAX, CV_8UC1);
+// 	normalize(depth3, depth3, 0, 255, NORM_MINMAX, CV_8UC1);
+	//normalize(confidence, confidence, 0, 255, NORM_MINMAX, CV_8UC1);
+// 	equalizeHist(depth, depth);
+// 	equalizeHist(depth2, depth2);
+// 	equalizeHist(depth3, depth3);
 
-	return;
+	//equalizeHist(confidence, confidence);
+	//blur(depth, depth2,Size(5,5));
+
+// 	imshow("Depth", depth);
+//  	//imshow("Depth2", depth2);
+// // 	imshow("Depth3", depth3);
+// 	imshow("Intensity", visual);
+// 	imshow("Confidence", confidence);
+
+	return 1;
 }
 
 //////////////////////////
@@ -170,7 +200,20 @@ void ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& con
 //////////////////////////
 int ORF::setAutoExposure (bool on)
 {
-	int res = SR_SetAutoExposure(orfCam_,1,150,5,70);
+	int timemin, timemax, percOverPos, desiredPos;
+	if (on==true) {
+		timemin = 1;
+		timemax = 150;
+		percOverPos = 5;
+		desiredPos = 70;
+	} else {
+		timemin = 255;
+		timemax = 0;
+		percOverPos = 0;
+		desiredPos = 0;
+	}	
+	int res = SR_SetAutoExposure(orfCam_,timemin,timemax,percOverPos,desiredPos);
+	INFO<<"Auto exposure parameters have been set to:\n\t\tMin integration time = "<<timemin<<"s\n\t\tMax integration time = "<<timemax<<"s\n\t\tPercentage of the historigram above position = "<<percOverPos<<"\%\n\t\tDesired mean percentage of the historigram = "<<desiredPos<<"\%"<<endl;
 	return res;
 }
 int ORF::setIntegrationTime (int time)
@@ -212,6 +255,7 @@ int ORF::setModulationFrequency (int freq)
 		default : m = MF_LAST;
 			break;
 	}
+	INFO<<"Modulation frequency has been set to "<<freq<<"MHz (num "<<m<<")"<<endl;
 	int res = SR_SetModulationFrequency(orfCam_, m);
 	return res;
 }
@@ -266,7 +310,7 @@ int ORF::getAmplitudeThreshold ()
 
 string ORF::getDeviceString ()
 {
-	char *buff;
+	char buff[100];
 	SR_GetDeviceString(orfCam_, buff, 100);
 	string s(buff);
 	device_id_ = s;
@@ -277,8 +321,10 @@ string ORF::getLibraryVersion ()
 {
 	unsigned short tab[4];
 	SR_GetVersion(tab);
-	stringstream ss;
-	INFO<<"Version "<<tab[3]<<"."<<tab[2]<<"."<<tab[1]<<"."<<tab[0];
-	lib_version_ = ss.str();
-	return ss.str();
+	char buf[10];
+	sprintf(buf, "%i.%i.%i.%i", tab[3], tab[2], tab[1], tab[0]);
+	string str(buf);
+	INFO<<"Version "<<str<<endl;
+	lib_version_ = str;
+	return str;
 }

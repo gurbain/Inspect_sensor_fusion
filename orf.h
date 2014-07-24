@@ -51,9 +51,9 @@ namespace orf
 			ORF (bool use_filter=USE_FILTER);
 			~ORF ();
 
-			int initOrf(int auto_exposure, int integration_time, int modulation_freq, int amp_threshold, string ether_addr="192.168.1.42");
+			int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=21, int amp_threshold=20, string ether_addr="192.168.1.42");
 			int closeOrf();
-			void captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame);
+			int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame);
 
 			int setAutoExposure (bool on);
 			int setIntegrationTime (int time);
@@ -68,6 +68,9 @@ namespace orf
 
 		private:
 			CMesaDevice* orfCam_;
+			
+			int imgWidth;
+			int imgHeight;
 
 			ImgEntry* imgEntryArray_;
 			float *buffer_, *xp_, *yp_, *zp_;
