@@ -54,6 +54,7 @@ namespace orf
 			int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=21, int amp_threshold=20, string ether_addr="192.168.1.42");
 			int closeOrf();
 			int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame);
+			int intrinsicCalib();
 
 			int setAutoExposure (bool on);
 			int setIntegrationTime (int time);

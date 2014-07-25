@@ -15,6 +15,28 @@
 using namespace orf;
 using namespace std;
 
+string type2str(int type) {
+	string r;
+
+	uchar depth = type & CV_MAT_DEPTH_MASK;
+	uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+	switch ( depth ) {
+	case CV_8U:  r = "8U"; break;
+	case CV_8S:  r = "8S"; break;
+	case CV_16U: r = "16U"; break;
+	case CV_16S: r = "16S"; break;
+	case CV_32S: r = "32S"; break;
+	case CV_32F: r = "32F"; break;
+	case CV_64F: r = "64F"; break;
+	default:     r = "User"; break;
+	}
+
+	r += "C";
+	r += (chans+'0');
+
+	return r;
+}
 
 //////////////////////////
 //////  Constructor //////
@@ -167,8 +189,8 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 	resize(confidence, confidenceNewImageFrame, newSize);
 	
 	// Image processing
-// 	normalize(visualNewImageFrame, visualNewImageFrame, 0, 255, NORM_MINMAX, CV_8UC1);
-// 	equalizeHist(visualNewImageFrame, visualNewImageFrame);
+	normalize(visualNewImageFrame, visualNewImageFrame, 0, 255, NORM_MINMAX, CV_8UC1);
+	equalizeHist(visualNewImageFrame, visualNewImageFrame);
 	// 	Mat depth2, depth3;
 //  	depth.convertTo(depth, CV_8U, 0.00390625);
 // 	visual.convertTo(visual, CV_8U, 0.00390625);
@@ -207,8 +229,8 @@ int ORF::setAutoExposure (bool on)
 		percOverPos = 5;
 		desiredPos = 70;
 	} else {
-		timemin = 255;
-		timemax = 0;
+		timemin = 10;
+		timemax = 20;
 		percOverPos = 0;
 		desiredPos = 0;
 	}	
@@ -328,3 +350,29 @@ string ORF::getLibraryVersion ()
 	lib_version_ = str;
 	return str;
 }
+
+int ORF::intrinsicCalib()
+{
+	// Capture an image
+	Mat dt, it, ct;
+	int retVal = captureOrf(dt, it, ct);
+	dt.convertTo(dt, CV_8U, 0.00390625);
+	it.convertTo(it, CV_8U, 0.00390625);
+	ct.convertTo(ct, CV_8U, 0.00390625);
+	imshow("Image", it);
+	INFO<<"Type: dt: "<<type2str(dt.type())<<"; it: "<<type2str(it.type())<<"; ct: "<<type2str(dt.type())<<endl;
+	if (retVal!=1)
+		return -1;
+	
+	//namedWindow("Image View", 1);
+	
+	// Detect checkerboard
+	Size boardSize(7,7);
+	Size imageSize = it.size();
+	vector<vector<Point2f> > imagePoints(1);
+	bool found = findChessboardCorners(it, boardSize, imagePoints[0]);
+	INFO<<"Checkerboard found : "<<found<<endl;
+	
+	return 1;
+}
+

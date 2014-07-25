@@ -15,6 +15,7 @@
 #include "camera.h"
 #include "orf.h"
 
+
 using namespace std;
 using namespace cv;
 using namespace orf;
@@ -33,6 +34,8 @@ int main(int argc, char **argv) {
 	tof.initOrf();
 	//stereo.initTwoCameras();
 	
+	// Calibrate
+	//tof.intrinsicCalib();
 
 	//cam2.startTwoCameras();
 	//namedWindow("a");

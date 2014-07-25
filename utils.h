@@ -15,7 +15,6 @@
 // Project libs
 #include "defines.h"
 #include "camera.h"
-#include "orf.h"
 
 // OpenCV libs
 #include "opencv2/core/core.hpp"
@@ -38,7 +37,8 @@
 #include <linux/version.h>
 
 using namespace std;
-using namespace orf;
+//using namespace orf;
+using namespace cv;
 
 void intro()
 {
@@ -59,42 +59,44 @@ void intro()
 	cout<<"=======================================================================\n"<<endl;
 }
 
-void changeParams(ORF cam)
-{
-	int time = cam.getIntegrationTime();
-	int thresh = cam.getAmplitudeThreshold();
-	double freq = cam.getModulationFrequency();
-	char autoexp = 'y';
-	
-	cout<<"\n======================================================================="<<endl;
-	cout<<" Device : "<<cam.device_id_<<endl;
-	cout<<" Library version : "<<cam.lib_version_<<endl; 
-	cout<<"=======================================================================";
-	cout<<"\nIntegration time: "<<cam.getIntegrationTime()<<" seconds"<<endl;
-	cout<<"Amplitude threshold: "<<cam.getAmplitudeThreshold()<<endl;
-	cout<<"Modulation frequency: "<<cam.getModulationFrequency()<<" MHz"<<endl<<endl;
-	
-	cout<<"Set auto-exposure? (Y)es/(n)o : ";
-	cin>>autoexp;
-	cout<<"New integration time: ";
-	cin>>time;
-	cout<<"New amplitude: ";
-	cin>>thresh;
-	cout<<"New modulation frequency: ";
-	cin>>freq;
-	
-	if (autoexp=='y') {
-		cam.setAutoExposure(1);
-	} else
-		cam.setAutoExposure(0);
-	cam.setAmplitudeThreshold(thresh);
-	cam.setIntegrationTime(time);
-	cam.setModulationFrequency(freq);
-	
-	cout<<"\nIntegration time: "<<cam.getIntegrationTime()<<"seconds"<<endl;
-	cout<<"Amplitude threshold: "<<cam.getAmplitudeThreshold()<<endl;
-	cout<<"Modulation frequency: "<<cam.getModulationFrequency()<<"MHz"<<endl<<endl;
-	
-}
+// void changeParams(ORF cam)
+// {
+// 	int time = cam.getIntegrationTime();
+// 	int thresh = cam.getAmplitudeThreshold();
+// 	double freq = cam.getModulationFrequency();
+// 	char autoexp = 'y';
+// 	
+// 	cout<<"\n======================================================================="<<endl;
+// 	cout<<" Device : "<<cam.device_id_<<endl;
+// 	cout<<" Library version : "<<cam.lib_version_<<endl; 
+// 	cout<<"=======================================================================";
+// 	cout<<"\nIntegration time: "<<cam.getIntegrationTime()<<" seconds"<<endl;
+// 	cout<<"Amplitude threshold: "<<cam.getAmplitudeThreshold()<<endl;
+// 	cout<<"Modulation frequency: "<<cam.getModulationFrequency()<<" MHz"<<endl<<endl;
+// 	
+// 	cout<<"Set auto-exposure? (Y)es/(n)o : ";
+// 	cin>>autoexp;
+// 	cout<<"New integration time: ";
+// 	cin>>time;
+// 	cout<<"New amplitude: ";
+// 	cin>>thresh;
+// 	cout<<"New modulation frequency: ";
+// 	cin>>freq;
+// 	
+// 	if (autoexp=='y') {
+// 		cam.setAutoExposure(1);
+// 	} else
+// 		cam.setAutoExposure(0);
+// 	cam.setAmplitudeThreshold(thresh);
+// 	cam.setIntegrationTime(time);
+// 	cam.setModulationFrequency(freq);
+// 	
+// 	cout<<"\nIntegration time: "<<cam.getIntegrationTime()<<"seconds"<<endl;
+// 	cout<<"Amplitude threshold: "<<cam.getAmplitudeThreshold()<<endl;
+// 	cout<<"Modulation frequency: "<<cam.getModulationFrequency()<<"MHz"<<endl<<endl;
+// 	
+// }
+
+
 
 #endif
