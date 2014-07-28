@@ -28,61 +28,51 @@ int main(int argc, char **argv) {
 
 	// Create
 	ORF tof;
-	//Cameras stereo;
 	
 	// Initialize
 	tof.initOrf();
 	//stereo.initTwoCameras();
 	
-	// Calibrate
-	//tof.intrinsicCalib();
 
-	//cam2.startTwoCameras();
-	//namedWindow("a");
-	
-	int flag;
 	while(true) {
 		//Mat leftNewImageFrame, rightNewImageFrame;
-		
 		//cam2.captureTwoImages(leftNewImageFrame, rightNewImageFrame, &cam2.rightImgNum, &cam2.leftImgNum, flag);
 
-		
-		// Change parameters
-		//changeParams(cam);
-		
-		// Capture ToF images
+		// Capture rectified ToF images
 		Mat depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
 		int retVal = tof.captureOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame);
 		if (retVal==-1)
-			break;
-		imshow("Depth", depthNewImageFrame);
-		imshow("Intensity", visualNewImageFrame);
-		imshow("Confidency", confidenceNewImageFrame);
+			return 0;
 		
-		// Wait for user to close the software
-		int key = waitKey(1);
-		if (key == 2) break;
-	}
-
-// 	try{
-// 		DEBUG<<"arg"<<endl;
-// 		UeyeOpencvCam cam1 = UeyeOpencvCam(640,480);
-// 		//UeyeOpencvCam cam2 = UeyeOpencvCam(640,480);
-// 
-// 
-// 		while (true) {
-// 			cv::imshow("cam1", cam1.getFrame());
-// 			cout<<"ok1"<<endl;
-// // 			cv::namedWindow("cam2", CV_WINDOW_AUTOSIZE);
-// // 			cv::imshow("cam2", cam2.getFrame());
-// // 			cout<<"ok2"<<endl;
-// 			if (cv::waitKey(1) >= 0) {
-// 				break;
-// 			}
-// 		}
-// 	} catch(UeyeOpenCVException& e) {
-// 		ERROR << e.what() << endl;
-// 	}
-	
-		return 0;
+		// Capture non rectified ToF images
+		Mat depthNewImageFrame2, visualNewImageFrame2, confidenceNewImageFrame2;
+		retVal = tof.captureRectifiedOrf(depthNewImageFrame2, visualNewImageFrame2, confidenceNewImageFrame2);
+		if (retVal==-1)
+			return 0;
+		
+		imshow("Depth", depthNewImageFrame);
+		//imshow("Intensity", visualNewImageFrame);
+		//imshow("Confidency", confidenceNewImageFrame);
+		
+		imshow("DepthR", depthNewImageFrame2);
+		//imshow("IntensityR", visualNewImageFrame2);
+		//imshow("ConfidencyR", confidenceNewImageFrame2);
+		
+				// Handle pause/unpause and ESC
+		int c = cvWaitKey(15);
+		if(c == 'p') {
+			DEBUG<<"Acquisition is now paused"<<endl;
+			c = 0;
+			while(c != 'p' && c != 27){
+				c = cvWaitKey(250);
+			}
+			DEBUG<<"Acquisition is now unpaused"<<endl;
+		}
+		if(c == 27) {
+			DEBUG<<"Acquisition has been stopped by user"<<endl;
+			return 0;
+		}
+ 	}
+ 	
+	return 0;
 }

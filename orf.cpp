@@ -43,8 +43,14 @@ string type2str(int type) {
 //////////////////////////
 ORF::ORF(bool use_filter) : 
 orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
-imgWidth(640), imgHeight(480)
-{}
+imgWidth(640), imgHeight(480), 
+boardWidth (6), boardHeight (11),
+numberBoards (10), squareSize (250),
+acqStep (20)
+{
+	imageSize = Size(imgWidth, imgHeight);
+	boardSize = Size(boardWidth, boardHeight);
+}
 
 //////////////////////////
 //////   Destructor //////
@@ -346,33 +352,171 @@ string ORF::getLibraryVersion ()
 	char buf[10];
 	sprintf(buf, "%i.%i.%i.%i", tab[3], tab[2], tab[1], tab[0]);
 	string str(buf);
-	INFO<<"Version "<<str<<endl;
+	INFO<<"SwissRanger device version "<<str<<endl;
 	lib_version_ = str;
 	return str;
 }
 
-int ORF::intrinsicCalib()
+vector<Point3f> ORF::Create3DChessboardCorners(Size boardSize, float squareSize)
 {
-	// Capture an image
+	vector<Point3f> corners;
+ 
+	for( int i = 0; i < boardSize.height; i++ ) {
+		for( int j = 0; j < boardSize.width; j++ ) {
+			corners.push_back(cv::Point3f(float(j*squareSize),
+			float(i*squareSize), 0));
+		}
+	}
+	return corners;
+}
+
+
+int ORF::intrinsicCalib(string filename)
+{
+	// CV Matrix storage
 	Mat dt, it, ct;
+	vector<vector<Point2f> > imagePoints(numberBoards);
+	vector<vector<Point3f> > objectPoints(numberBoards);
+	vector<Mat> rotationVectors;
+	vector<Mat> translationVectors;
+	Mat distortionCoeffs = Mat::zeros(8, 1, CV_64F);
+	Mat intrinsicMatrix = Mat::eye(3, 3, CV_64F);
+	
+	// Usefull variables
+	int successes = 0;
+	int step, frame = 0;
+	bool found;
+	
+	// Capture first image
 	int retVal = captureOrf(dt, it, ct);
-	dt.convertTo(dt, CV_8U, 0.00390625);
-	it.convertTo(it, CV_8U, 0.00390625);
-	ct.convertTo(ct, CV_8U, 0.00390625);
-	imshow("Image", it);
-	INFO<<"Type: dt: "<<type2str(dt.type())<<"; it: "<<type2str(it.type())<<"; ct: "<<type2str(dt.type())<<endl;
 	if (retVal!=1)
 		return -1;
 	
-	//namedWindow("Image View", 1);
+
+	// Capture numberBoards images
+	while(successes < numberBoards) {
+		if((frame++ % acqStep)==0){
+			// Find chessboard corners:
+			found = findChessboardCorners(it, boardSize, imagePoints[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
+
+			// Draw it if applicable
+			drawChessboardCorners(it, boardSize, Mat(imagePoints[successes]), found);
+			
+// 			// Save it just in case
+// 			stringstream ss;
+// 			string name = "TOF";
+// 			string type = ".jpg";
+// 			ss<<name<<(frame + 1)<<type;
+// 			string filename = ss.str();
+// 			ss.str("");
+// 			try {
+// 				imwrite(filename, it);
+// 			} catch (int ex) {
+// 				ERROR<<"Exception converting image to jpg format: "<<ex<<endl;
+// 				return -1;
+// 			}
+				
+			// Add point if we find them
+			if(found){
+				objectPoints[successes] = Create3DChessboardCorners(boardSize, squareSize);
+				successes++;
+				INFO<<"Checkerboard found : "<<successes<<endl; 
+			}
+		}
+		
+		// Show the result
+		imshow("Calibration", it);
+		
+		// Handle a timeout
+		if (frame > 3000) {
+			DEBUG<<"Timeout! Checkerboard not found! Please, restart calibration process"<<endl;
+		}
+
+		// Handle pause/unpause and ESC
+		int c = cvWaitKey(15);
+		if(c == 'p') {
+			DEBUG<<"Acquisition is now paused"<<endl;
+			c = 0;
+			while(c != 'p' && c != 27){
+				c = cvWaitKey(250);
+			}
+			DEBUG<<"Acquisition is now unpaused"<<endl;
+		}
+		if(c == 27) {
+			DEBUG<<"Acquisition has been stopped by user"<<endl;
+			return 0;
+		}
+		
+		// Get next image
+		int retVal = captureOrf(dt, it, ct);
+		if (retVal!=1)
+			return -1;
+	}
 	
-	// Detect checkerboard
-	Size boardSize(7,7);
-	Size imageSize = it.size();
-	vector<vector<Point2f> > imagePoints(1);
-	bool found = findChessboardCorners(it, boardSize, imagePoints[0]);
-	INFO<<"Checkerboard found : "<<found<<endl;
+	// Compute calibration matrixes
+	double rms = calibrateCamera(objectPoints, imagePoints, imageSize, intrinsicMatrix, distortionCoeffs, rotationVectors, translationVectors, 0|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+	INFO<<"RMS distance between measured and reprojected = "<<rms<<endl;
+
+	
+	// Save the intrinsics and distortions
+	FileStorage storage(filename, FileStorage::WRITE);
+	storage<<"Intrinsicparameters"<<intrinsicMatrix;
+	storage<<"Distortioncoefficients"<<distortionCoeffs;
+	storage.release();
+	
+	// Print saving info
+	INFO<<"Calibration matrixes has been saved in "<<filename<<endl;
 	
 	return 1;
 }
 
+int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, string filename)
+{
+	int retVal;
+	
+	if (mapx.empty() || mapy.empty()) {
+		// CV Matrix storage
+		Mat distortionCoeffs = Mat::zeros(8, 1, CV_64F);
+		Mat intrinsicMatrix = Mat::eye(3, 3, CV_64F);
+		
+		// Load calibration parameters
+		FileStorage storage;
+		retVal = storage.open(filename, FileStorage::READ);
+		if (retVal==1) {
+			INFO<<"Calibration file found! No need to perform calibration!"<<endl;
+			storage["Intrinsicparameters"]>>intrinsicMatrix;
+			storage["Distortioncoefficients"]>>distortionCoeffs;
+		} else {
+			INFO<<"Calibration file not found! Calibration needed!"<<endl;
+			intrinsicCalib(filename);
+			retVal = storage.open(filename, FileStorage::READ);
+			if (retVal!=1) {
+				ERROR<<"File cannot be open or read! Verify user rights"<<endl;
+				return -1;
+			}
+			storage["Intrinsicparameters"]>>intrinsicMatrix;
+			storage["Distortioncoefficients"]>>distortionCoeffs;
+		}
+		storage.release();
+		
+		// Build the undistort map that we will use for all subsequent frames
+		Size imageSize(imgWidth, imgHeight);
+		Mat Rect, newCameraMatrix;
+		mapx.create(imageSize, CV_32FC1);
+		mapy.create(imageSize, CV_32FC1);
+		initUndistortRectifyMap(intrinsicMatrix, distortionCoeffs, Rect, newCameraMatrix, imageSize, CV_32FC1, mapx, mapy);
+	}
+	
+	// Capture an image
+	Mat dt, it, ct;
+	retVal = captureOrf(dt, it, ct);
+	if (retVal!=1)
+		return -1;
+	
+	// Remap the image
+	remap(dt, depthNewImageFrame, mapx, mapy, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
+	remap(it, visualNewImageFrame, mapx, mapy, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
+	remap(ct, confidenceNewImageFrame, mapx, mapy, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
+	
+	return 1;
+}
