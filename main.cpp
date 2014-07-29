@@ -15,35 +15,12 @@
 #include "defines.h"
 #include "camera.h"
 #include "orf.h"
-#include "timeStamp.h"
 
 
 using namespace std;
 using namespace cv;
 using namespace orf;
 using namespace cam;
-
-void init()
-{
-	
-        cout<<"\n=============== SwissRanger SR4000 Acquisition Software ===============\n"<<endl;
-	cout<<"This software allows the user to take and save visual images and depth"<<endl;
-	cout<<"information given by a SwissRanger SR4000 connected by ethernet with"<<endl;
-	cout<<"a static IP."<<endl<<endl;
-	cout<<"PID of the process: "<<(int)getpid()<<endl;
-	cout<<"Compiled  On: \t"<<__DATE__<<" at "<<__TIME__<<" UTC"<<endl;
-	cout<<"          With:\tGCC: "<< __VERSION__<<endl;
-	struct utsname ver;
-	uname(&ver);
-	cout<<"\t\tUbuntu: Trusty 14.04 - kernel "<<ver.release<<endl;
-	cout<<"\t\tOpenCV: "<<CV_VERSION<<endl;
-	cout<<"Author: "<<__AUTHOR__<<endl;
-	cout<<"Space Systems Lab (SSL) - INSPECT project"<<endl;
-	cout<<"July 2014 - Massachussets Institute of Technology (MIT)\n"<<endl;
-	cout<<"=======================================================================\n"<<endl;
-// 	gettimeofday(&timeValInit, NULL);
-// 	timeInit = timeValInit.tv_sec*1000 + timeValInit.tv_usec/1000;
-}
 
 
 int main(int argc, char **argv) {

@@ -3,7 +3,7 @@
 * 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
 * 	\date    July 2014
 * 	\version 0.1
-* 	\brief   Software global tools
+* 	\brief   Software global tools headers
 *
 * 	License: The MIT License (MIT)
 * 	Copyright (c) 2014, Massachussets Institute of Technology
@@ -14,7 +14,6 @@
 
 // Project libs
 #include "defines.h"
-#include "camera.h"
 
 // OpenCV libs
 #include "opencv2/core/core.hpp"
@@ -36,10 +35,36 @@
 #include <unistd.h>
 #include <linux/version.h>
 
-using namespace std;
-//using namespace orf;
-using namespace cv;
+// Defines
+#define DELTATMIN	50
+#define DELTATMAX	150
 
+using namespace std;
+
+static timeval timeValInit;
+
+void init();
+
+class TimeStamp {
+	
+	public:
+		timeval timeBegin;
+		timeval timeEnd;
+		timeval timeInit;
+		int meanTime;
+		int procTime;
+		bool isRunning;
+	
+	
+		TimeStamp();
+		~TimeStamp();
+		
+		void start();
+		void stop();
+		int getProcTime();
+		int getMeanTime();
+		bool isSynchro(TimeStamp t);
+};
 
 
 // void changeParams(ORF cam)
