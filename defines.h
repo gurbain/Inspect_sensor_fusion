@@ -10,6 +10,9 @@
 */
 
 
+#ifndef DEFINES_HH
+#define DEFINES_HH
+
 // Output streamings defines
 #define __AUTHOR__	"Gabriel Urbain"
 #define __F__		(strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -30,3 +33,13 @@
 // Stereo camera defines
 #define RING_BUFFER_SIZE	10
 #define WAIT_TIMEOUT_MS		10000
+
+// Other libs
+#include <sys/time.h>
+	
+
+// // Global variables
+// long timeInit;
+// timeval timeValInit;
+
+#endif

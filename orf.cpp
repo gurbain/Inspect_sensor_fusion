@@ -160,8 +160,11 @@ int ORF::closeOrf()
 //////////////////////////
 //////   Read Data  //////
 //////////////////////////
-int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame)
+int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts)
 {
+	// Start the timeStamp
+	ts.start();
+	
 	// Verify the handle integrity
 	SR_SetMode(orfCam_, AM_COR_FIX_PTRN|AM_CONV_GRAY|AM_DENOISE_ANF|AM_CONF_MAP);
 	if (orfCam_ == NULL) {
@@ -169,19 +172,15 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 		return -1;
 	}
 
-	// Acquire data with time stamp
-	int res;
-	time_t time1 = time(0);
-	res = SR_Acquire (orfCam_);
-	time_t time2 = time(0);
-	if (res < 0) {
+	// Do the acquisition
+	int retVal = SR_Acquire (orfCam_);
+	if (retVal < 0) {
 		ERROR<<"Unable to capture data"<<endl;
 		return -1;
 	}
-	time_t timestamp = ((int)time1 + (int)time2) / 2;
 
 	// Points array
-	res = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
+	retVal = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
 
 	// Fill the pictures
 	Mat depth(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 0));
@@ -220,6 +219,9 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 // 	imshow("Intensity", visual);
 // 	imshow("Confidence", confidence);
 
+	// Stop the timeStamp
+	ts.stop();
+	
 	return 1;
 }
 
@@ -388,7 +390,8 @@ int ORF::intrinsicCalib(string filename)
 	bool found;
 	
 	// Capture first image
-	int retVal = captureOrf(dt, it, ct);
+	TimeStamp t;
+	int retVal = captureOrf(dt, it, ct, t);
 	if (retVal!=1)
 		return -1;
 	
@@ -448,7 +451,7 @@ int ORF::intrinsicCalib(string filename)
 		}
 		
 		// Get next image
-		int retVal = captureOrf(dt, it, ct);
+		int retVal = captureOrf(dt, it, ct, t);
 		if (retVal!=1)
 			return -1;
 	}
@@ -470,10 +473,12 @@ int ORF::intrinsicCalib(string filename)
 	return 1;
 }
 
-int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, string filename)
+int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, string filename)
 {
-	int retVal;
+	// Start the timeStamp
+	ts.start();
 	
+	int retVal;
 	if (mapx.empty() || mapy.empty()) {
 		// CV Matrix storage
 		Mat distortionCoeffs = Mat::zeros(8, 1, CV_64F);
@@ -509,7 +514,8 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 	
 	// Capture an image
 	Mat dt, it, ct;
-	retVal = captureOrf(dt, it, ct);
+	TimeStamp t;
+	retVal = captureOrf(dt, it, ct, t);
 	if (retVal!=1)
 		return -1;
 	
@@ -517,6 +523,9 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 	remap(dt, depthNewImageFrame, mapx, mapy, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
 	remap(it, visualNewImageFrame, mapx, mapy, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
 	remap(ct, confidenceNewImageFrame, mapx, mapy, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
+	
+	// Stop the timeStamp
+	ts.stop();
 	
 	return 1;
 }

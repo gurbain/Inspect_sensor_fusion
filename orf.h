@@ -12,9 +12,6 @@
 #ifndef ORF_HH
 #define ORF_HH
 
-// Project libs
-#include "defines.h"
-
 // OpenCV libs
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -35,6 +32,10 @@
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+// Project libs
+#include "defines.h"
+#include "timeStamp.h"
 
 #define DEBUG_CHESSBOARD
 
@@ -60,8 +61,8 @@ namespace orf
 
 			int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=21, int amp_threshold=20, string ether_addr="192.168.1.42");
 			int closeOrf();
-			int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame);
-			int captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, string filename="ORF_calib.xml");
+			int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts);
+			int captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, string filename="ORF_calib.xml");
 			int intrinsicCalib(string filename="ORF_calib.xml");
 			
 			int setAutoExposure (bool on);
