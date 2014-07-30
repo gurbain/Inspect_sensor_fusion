@@ -16,7 +16,6 @@
 #include "camera.h"
 #include "orf.h"
 
-
 using namespace std;
 using namespace cv;
 using namespace orf;
@@ -29,45 +28,56 @@ int main(int argc, char **argv) {
 
 	// Allocate variables
 	ORF tof;
+	Cameras stereo;
 	
 	// Initialize
 	tof.initOrf();
-	//stereo.initTwoCameras();
-
+	int retVal = stereo.initTwoCameras();
+	if (retVal!=0) {
+		tof.closeOrf();
+		stereo.closeTwoCameras();
+		return -1;
+	}
+	retVal = stereo.startTwoCameras();
+	if (retVal!=0) {
+		tof.closeOrf();
+		stereo.closeTwoCameras();;
+		return -1;
+	}
+	
+	// Main loop
+	int flag = 0;
 	while(true) {
 		
 		// Create TimeStamp
 		TimeStamp ts, tsr;
+		ts.start();
 		
-		//Mat leftNewImageFrame, rightNewImageFrame;
-		//cam2.captureTwoImages(leftNewImageFrame, rightNewImageFrame, &cam2.rightImgNum, &cam2.leftImgNum, flag);
+		Mat leftNewImageFrame, rightNewImageFrame;
+		retVal = stereo.captureTwoImages(leftNewImageFrame, rightNewImageFrame, &stereo.rightImgNum, &stereo.leftImgNum, flag);
+		if (retVal!=0)
+			break;
 
-		// Capture rectified ToF images
-		Mat depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
-		int retVal = tof.captureOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame, ts);
-		if (retVal==-1)
-			return 0;
 		
 		// Capture non rectified ToF images
-		Mat depthNewImageFrame2, visualNewImageFrame2, confidenceNewImageFrame2;
-		retVal = tof.captureRectifiedOrf(depthNewImageFrame2, visualNewImageFrame2, confidenceNewImageFrame2, tsr);
+		Mat depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
+		retVal = tof.captureRectifiedOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame, tsr);
 		if (retVal==-1)
-			return 0;
+			break;
+		ts.stop();
 		
+		// Display everything
 		imshow("Depth", depthNewImageFrame);
-		//imshow("Intensity", visualNewImageFrame);
-		//imshow("Confidency", confidenceNewImageFrame);
-		
-		imshow("DepthR", depthNewImageFrame2);
-		//imshow("IntensityR", visualNewImageFrame2);
-		//imshow("ConfidencyR", confidenceNewImageFrame2);
-		
+		imshow("Intensity", visualNewImageFrame);
+		imshow("Confidency", confidenceNewImageFrame);
+		imshow("Left", leftNewImageFrame);
+		imshow("Right", rightNewImageFrame);
+
 		// Display timeStamps
-		INFO<<"Time stamp non-synch: "<<ts.getProcTime()<<"ms of processing at "<<ts.getMeanTime()<<"ms"<<endl;
-		INFO<<"Time stamp synch: "<<tsr.getProcTime()<<"ms of processing at "<<tsr.getMeanTime()<<"ms"<<endl;
+		INFO<<"Time stamp: "<<tsr.getProcTime()<<"ms of processing at "<<tsr.getMeanTime()<<"ms"<<endl;
 		
 		// Handle pause/unpause and ESC
-		int c = cvWaitKey(15);
+		int c = cvWaitKey(1);
 		if(c == 'p') {
 			DEBUG<<"Acquisition is now paused"<<endl;
 			c = 0;
@@ -78,9 +88,13 @@ int main(int argc, char **argv) {
 		}
 		if(c == 27) {
 			DEBUG<<"Acquisition has been stopped by user"<<endl;
-			return 0;
+			break;
 		}
  	}
  	
+ 	// Close cameras
+ 	tof.closeOrf();
+ 	stereo.closeTwoCameras();
+	
 	return 0;
 }

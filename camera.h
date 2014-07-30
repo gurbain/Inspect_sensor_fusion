@@ -36,6 +36,10 @@
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include<fstream>
+
+#define TEST_PROJ_CHANNEL_FILE "/opt/GogglesDaemon/TEST_PROJ_CHANNEL"
+#define CAMERA_FILE "/opt/GogglesOptics/CAMERA_FILE"
 
 typedef struct _UEYE_IMAGE
 {
@@ -94,6 +98,8 @@ namespace cam
 
 
 		// Private Functions
+		void parseParameterFile();
+		
 		unsigned int initTwoCamerasNotSynch();
 		unsigned int closeTwoCamerasNotSynch();
 		unsigned int startTwoCamerasNotSynch();

@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/version.h>
+#include<fstream>
 
 void init();
 int main(int argc, char **argv);

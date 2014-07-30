@@ -23,6 +23,7 @@ act_img_buf1(NULL), act_img_buf2(NULL), last_img_buf1(NULL), last_img_buf2(NULL)
 hwGain(100)
 {
 	sprintf(CAMERA_1_SERIAL, "4002795734"); // this is the serial number of the left camera, a standard initialization
+	parseParameterFile();
 }
 
 int Cameras::getImageWidth()
@@ -517,8 +518,7 @@ unsigned int Cameras::initTwoCamerasSynch()
 		return retVal;
 	}
 
-	
-	DEBUG<<"Fonctionne"<<endl;
+	DEBUG<<"Initialization successfull!"<<endl;
 	return 0;
 }
 
@@ -573,17 +573,18 @@ unsigned int Cameras::startTwoCamerasSynch()
 	retVal = is_CaptureVideo(h_cam2, IS_DONT_WAIT);
 	if (retVal != IS_SUCCESS)
 	{
-		DEBUG<<"Capture Video Failed (Code: "<<retVal<<")"<<endl;
+		ERROR<<"Capture Video Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
 	}
 
 	retVal = is_CaptureVideo(h_cam1, IS_DONT_WAIT);
 	if (retVal != IS_SUCCESS)
 	{
-		DEBUG<<"Capture Video Failed (Code: "<<retVal<<")"<<endl;
+		ERROR<<"Capture Video Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
 	}
-
+	DEBUG<<"Capture Video successfull!"<<endl;
+		
 	return 0;
 }
 
@@ -612,45 +613,12 @@ unsigned int Cameras::captureTwoImagesSynch(cv::Mat& leftNewImageFrame, cv::Mat&
 {
 	int retVal;
 
-	iterDummy++;
-
-	//this function is not documented in the programmers manual
-	//it is mentioned in README.TXT and used in the demo program...
-	//the parameters are (camera_handle, event_type, timeout_in_ms)
-
-
+	// Is Waiting??
 	retVal = is_WaitEvent(h_cam1, IS_SET_EVENT_FRAME, WAIT_TIMEOUT_MS);
 	if (retVal != IS_SUCCESS)
 	{
 		ERROR<<"Is wait event Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
-	}
-
-
-	if (iterDummy > 1)
-	{
-
-		// Unlock active image buffer for camera 2
-		retVal = is_UnlockSeqBuf (h_cam2, (rightImgNum), (this->act_img_buf2));
-		if (retVal != IS_SUCCESS)
-		{
-			DEBUG<<"is_UnlockSeqBuf for active buffer Failed (Code: "<<retVal<<")"<<endl;
-			return retVal;
-		}
-
-		prevImgNum = rightImgNum -1;
-		if (rightImgNum == 1)
-			prevImgNum = imgBufferCount;
-/*
-		// Unlock last image buffer for camera 2
-//		retVal = is_UnlockSeqBuf (h_cam2, IS_IGNORE_PARAMETER, (this->last_img_buf2));
-		retVal = is_UnlockSeqBuf (h_cam2, prevImgNum, (this->last_img_buf2));
-		if (retVal != IS_SUCCESS)
-		{
-			printf("is_UnlockSeqBuf for last buffer Failed (Code: "<<retVal<<")"<<endl;
-			return retVal;
-		}
-		*/
 	}
 
 	retVal = is_WaitEvent(h_cam2, IS_SET_EVENT_FRAME, WAIT_TIMEOUT_MS);
@@ -660,69 +628,53 @@ unsigned int Cameras::captureTwoImagesSynch(cv::Mat& leftNewImageFrame, cv::Mat&
 		return retVal;
 	}
 
-	retVal = is_GetActSeqBuf (h_cam2, &rightImgNum, &(this->act_img_buf2), &(this->last_img_buf2));
-	if (retVal != IS_SUCCESS)
-	{
-		DEBUG<<"GetActSeqBuf Failed (Code: "<<retVal<<")"<<endl;
-		return retVal;
-	}
-	rightNewImageFrame.data = (uchar*) this->last_img_buf2;
-
-
-	// lock active image buffer for camera 2, this particular memory will be skipped while camera 2 is running in freerun mode
-	retVal = is_LockSeqBuf (h_cam2, rightImgNum, (this->act_img_buf2));
-	if (retVal != IS_SUCCESS)
-	{
-		DEBUG<<"is_LockSeqBuf for active buffer Failed (Code: "<<retVal<<")"<<endl;
-		return retVal;
-	}
-
-	prevImgNum = rightImgNum -1;
-	if (rightImgNum == 1)
-		prevImgNum = imgBufferCount;
+	// Capture image into images
+// 	Mat data1(size(this->imgWidth, this->imgHeight), IPL_DEPTH_8U, 1);
+// 	Mat data2(size(this->imgWidth, this->imgHeight), IPL_DEPTH_8U, 1);
+// 	if (h_cam1 !=0) {
+// 		INT dummy;
+// 		char *pMem, *pLast;
+// 		double fps = 0.0;
+// 
+// 		if (is_FreezeVideo (h_cam1, IS_WAIT) == IS_SUCCESS) {
+// 			m_Ret = is_GetActiveImageMem(h_cam1, &pLast, &dummy);
+// 			m_Ret = is_GetImageMem(h_cam1, (void**)&pLast);
+// 		}
+// 	
+// 	}
+// 	 memory initialization
+//         is_AllocImageMem (m_hCam, m_nSizeX, m_nSizeY, m_nBitsPerPixel, &m_pcImageMemory, &m_lMemoryId);
+//         set memory active
+//         is_SetImageMem (m_hCam, m_pcImageMemory, m_lMemoryId);
+// 	data1.data = &m_pcImageMemory;
+// 
+// 
+// 	leftNewImageFrame.data = (char*) this->last_img_buf1;
+// 	rightNewImageFrame.data = (char*) this->last_img_buf2;
+// 
+// 	check if last_img_buf position has changed
+// 	if not, current frames are out of synch --> don't change frames (= use previous frames) and return synchCheckFlag = -1
+// 	if(this->last_img_buf1 == bufDummy1 || this->last_img_buf2 == bufDummy2)
+// 	{
+// 		synchCheckFlag = -1;
+// 	}
+// 	else
+// 	{
+// 		leftNewImageFrame.data = (uchar*) this->last_img_buf1;
+// 		rightNewImageFrame.data = (uchar*) this->last_img_buf2;
+// 
+// 		synchCheckFlag = 0;
+// 
+// 	}
+// 
+// 	this->bufDummy1 = this->last_img_buf1;
+// 	this->bufDummy2 = this->last_img_buf2;
 /*
-	// lock active last buffer for camera 2, this particular memory will be skipped while camera 2 is running in freerun mode
-	retVal = is_LockSeqBuf (h_cam2, prevImgNum, (this->last_img_buf2));
-//	retVal = is_LockSeqBuf (h_cam2, IS_IGNORE_PARAMETER, (this->last_img_buf2));
-	if (retVal != IS_SUCCESS)
-	{
-		printf("is_LockSeqBuf for last buffer Failed (Code: "<<retVal<<")"<<endl;
-		return retVal;
-	}
-*/
-
-	retVal = is_GetActSeqBuf (h_cam1, &leftImgNum, &(this->act_img_buf1), &(this->last_img_buf1));
-	if (retVal != IS_SUCCESS)
-	{
-		DEBUG<<"GetActSeqBuf Failed (Code: "<<retVal<<")"<<endl;
-		return retVal;
-	}
-	leftNewImageFrame.data = (uchar*) this->last_img_buf1;
-
-	// get current time in ms for timestamp
-//	gettimeofday(&this->timeRAW,NULL);
-//	imageTimestamp = timeRAW.tv_sec*1000+timeRAW.tv_usec/1000; // ms
-//	imageTimestamp = imageTimestamp - zerotime;
-
-
-	// check if last_img_buf position has changed
-	// if not, current frames are out of synch --> don't change frames (= use previous frames) and return synchCheckFlag = -1
-	if(this->last_img_buf1 == bufDummy1 || this->last_img_buf2 == bufDummy2)
-	{
-		synchCheckFlag = -1;
-	}
-	else
-	{
-		leftNewImageFrame.data = (uchar*) this->last_img_buf1;
-		rightNewImageFrame.data = (uchar*) this->last_img_buf2;
-
-		synchCheckFlag = 0;
-
-	}
-
-	this->bufDummy1 = this->last_img_buf1;
-	this->bufDummy2 = this->last_img_buf2;
-
+    if (h_cam1 !=0 ) {
+        //free old image mem.
+        is_FreeImageMem (h_cam1, m_pcImageMemory, m_lMemoryId);
+        is_ExitCamera (h_cam1);
+    }*/
 	return 0;
 }
 
@@ -1072,7 +1024,7 @@ unsigned int Cameras::startTwoCamerasNotSynch()
 		DEBUG<<"Capture Video Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
 	}
-	
+	DEBUG<<"Capture Video successfull!"<<endl;
 	return 0;
 }
 
@@ -1131,9 +1083,19 @@ unsigned int Cameras::captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::M
 		DEBUG<<"GetActSeqBuf Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
 	}
-
-	leftNewImageFrame.data = (uchar*) this->last_img_buf1;
-	rightNewImageFrame.data = (uchar*) this->last_img_buf2;
+// 	cout<<"Matrice: \n[";
+// 	for (int i=0; i<imgHeight; i++) {
+// 		for(int j=0; j<imgWidth; j++) {
+// 			cout<<" "<<(int)(uchar)this->last_img_buf1[j*4 + i];
+// 		}
+// 		cout<<";";
+// 	}
+// 	cout<<"]"<<endl;
+	Mat left(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf1);
+	Mat right(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf2);
+// 	cout<<"LEFT"<<left<<endl;
+	leftNewImageFrame = left;
+	rightNewImageFrame = right;
 
 	// get current time in ms for timestamp
 //	gettimeofday(&this->timeRAW,NULL);
@@ -1144,6 +1106,250 @@ unsigned int Cameras::captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::M
 }
 //// end of NotSynch cameras functions
 
+/*
+ * This file comes directly from the GSP core. We should recreate a GSP class (integrating the new features as orf, thermocam, blablabla) 
+ * and integrate this function in it. For the moment, everything except concerning cameras has been commented (datastorage, spheres, streaming,...)
+ * The usefull variables from the class has been added in the begining of the function. 
+ * 
+ */
+void Cameras::parseParameterFile() {
+
+	string line;
+	string searchString;
+	string foundString;
+	size_t found;
+
+	char parameterFilePath[200] = "parameterFile1.txt";
+	ifstream parameterFile(parameterFilePath);
+
+	if (parameterFile.is_open()) {
+		INFO<<endl<<"--- PARAMETERFILE INPUT ---" <<endl;
+		while (parameterFile.good()) {
+
+			// Get line by line
+			getline (parameterFile, line);
+			if (line[0] != '#') {
+				// frameRate
+				searchString = "FRAME_RATE";
+				found = line.find(searchString);
+				if (found != string::npos) {
+					foundString = line.substr( found+searchString.size()+1, string::npos );
+					setFrameRate( atof(foundString.c_str()) );
+					cout << "FRAME_RATE " << foundString << endl;
+				}
+				searchString.clear();
+				found = string::npos;
+
+				// exposureTime
+				searchString = "EXPOSURE_TIME";
+				found = line.find(searchString);
+				if (found != string::npos) {
+					foundString = line.substr( found+searchString.size()+1, string::npos );
+					setExposureTime( atoi(foundString.c_str()) );
+					cout << "EXPOSURE_TIME " << foundString << endl;
+				}
+				searchString.clear();
+				found = string::npos;
+
+				// exposureTime
+				searchString = "HW_GAIN";
+				found = line.find(searchString);
+				if (found != string::npos) {
+					foundString = line.substr( found+searchString.size()+1, string::npos );
+					setHWGain( atoi(foundString.c_str()) );
+					cout << "HW_GAIN " << foundString << endl;
+				}
+				searchString.clear();
+				found = string::npos;
+
+
+				// useSynchCams
+				searchString = "USE_SYNCH_CAMS";
+				found = line.find(searchString);
+				if (found != string::npos) {
+					foundString = line.substr( found+searchString.size()+1, string::npos );
+					if (foundString == "true")
+						useSynchCams = true;
+					if (foundString == "false")
+						useSynchCams = false;
+					cout << "USE_SYNCH_CAMS " << foundString << endl;
+				}
+				searchString.clear();
+				found = string::npos;
+
+// 				// use images from file
+// 				searchString = "CAM_INPUT_IMG_DIR";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					if (foundString != "false") {
+// 						this->camInputImgDir = foundString;
+// 						this->camera.useCameras = false;
+// 						cout << "CAM_INPUT_IMG_DIR " << foundString << endl;
+// 					}
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+// // 
+// 				// start image
+// 				searchString = "CAM_INPUT_START_IMG";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					this->camInputStartImg =  atoi(foundString.c_str());
+// 					cout << "CAM_INPUT_START_IMG " << this->camInputStartImg << endl;
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+// 
+// 				// start image
+// 				searchString = "CAM_INPUT_FINAL_IMG";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					this->camInputFinalImg = atoi(foundString.c_str());
+// 					cout << "CAM_INPUT_FINAL_IMG " << this->camInputFinalImg << endl;
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+
+				// reduceImageSizeTo320x240
+				searchString = "REDUCE_IMAGE_SIZE_TO_320X240";
+				found = line.find(searchString);
+				if (found != string::npos) {
+					foundString = line.substr( found+searchString.size()+1, string::npos );
+					if (foundString == "true")
+						reduceImageSizeTo320x240 = true;
+					if (foundString == "false")
+						reduceImageSizeTo320x240 = false;
+					cout << "REDUCE_IMAGE_SIZE_TO_320X240 " << foundString << endl;
+				}
+				searchString.clear();
+				found = string::npos;
+
+// 				// videoStreamingOn
+// 				searchString = "VIDEO_STREAMING_ON";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					if (foundString == "true")
+// 						this->videostreaming.videoStreamingOn = true;
+// 					if (foundString == "false")
+// 						this->videostreaming.videoStreamingOn = false;
+// 					cout << "VIDEO_STREAMING_ON " << foundString << endl;
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+// 
+// 				// autoImageStorage
+// 				searchString = "AUTOMATIC_IMAGE_STORAGE";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					if (foundString == "true")
+// 						this->datastorage.autoImageStorage = true;
+// 					if (foundString == "false")
+// 						this->datastorage.autoImageStorage = false;
+// 					cout << "AUTOMATIC_IMAGE_STORAGE " << foundString << endl;
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+// 
+// 				// autoImageStorage
+// 				searchString = "UNRECTIFIED_IMAGE_STORAGE";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					if (foundString == "true")
+// 						this->datastorage.unrectifiedImageStorage = true;
+// 					if (foundString == "false")
+// 						this->datastorage.unrectifiedImageStorage = false;
+// 					cout << "UNRECTIFIED_IMAGE_STORAGE " << foundString << endl;
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+// 
+// 				// useSpheres
+// 				searchString = "USE_SPHERES";
+// 				found = line.find(searchString);
+// 				if (found != string::npos) {
+// 					foundString = line.substr( found+searchString.size()+1, string::npos );
+// 					if (foundString == "true")
+// 						this->spheres.useSpheres = true;
+// 					if (foundString == "false")
+// 						this->spheres.useSpheres = false;
+// 					cout << "USE_SPHERES " << foundString << endl;
+// 				}
+// 				searchString.clear();
+// 				found = string::npos;
+			}
+		}
+		parameterFile.close();
+		cout << "---------------------------" << endl;
+
+
+	} else {
+		DEBUG<<"Unable to open "<<parameterFilePath<<endl;
+	}
+
+	
+// 	// Open the /opt/GogglesDaemon/TEST_PROJ_CHANNEL file
+// 	ifstream channelFile(TEST_PROJ_CHANNEL_FILE);
+// 
+// 	if (channelFile.is_open()) {
+// 		string ipaddr, port_str;
+// 		int port;
+// 
+// 		INFO<< "--- TEST_PROJ_CHANNEL_FILE INPUT ---" <<endl;
+// 		getline(channelFile, line);
+// 		
+// 		cout << "Comm Mode: " << line << endl;
+// 		if (line == "WifiCom" || line == "EthCom") {
+// 			getline(channelFile, line);
+// 			//ipaddr_port = line.substr( found+searchString.size()+1, string::npos );
+// 			found = line.find(":");
+// 			if (found != string::npos) {
+// 				ipaddr = line.substr(0,found);
+// 				port_str = line.substr(found+1,string::npos);
+// 				port = atoi(port_str.c_str());
+// 			}
+// 			cout << "VIDEO SERVER IP ADDRESS:PORT: " << ipaddr << ":" << port << endl;
+// 			videostreaming.setIPAddrPort(ipaddr, port);
+// 		} else {
+// 			getline(channelFile, line); //keep in to get 2nd line that is gogglesDaemon serial port
+// 			videostreaming.videoStreamingOn = false;
+// 			cout << "VIDEO_STREAMING_DISABLED - NO IP CONNECTION" << endl;
+// 		}
+// 
+// 		//serial port
+// 		getline(channelFile, line);
+// 		this->spheres.serial_port_path = line;
+// 		cout << "Serial Com: " << this->spheres.serial_port_path << endl;
+// 
+// 	} else {
+// 		DEBUG<< "Unable to open: " << TEST_PROJ_CHANNEL_FILE << endl;
+// 	}
+
+	//Open the /opt/GogglesDaemon/CAMERA_FILE
+	ifstream cameraFile(CAMERA_FILE);
+
+	if (cameraFile.is_open()) {
+		for (int count = 0; count < 16; count++) {
+			getline(cameraFile,line);
+			if (cameraFile.eof()) {
+				OPTICS_ID[count] = -1;
+				break;
+			}
+			found = line.find(":");
+			strcpy(LEFT_CAM_SERIAL[count],line.substr(0,found).c_str());
+			OPTICS_ID[count] = atoi(line.substr(found+1,string::npos).c_str());
+			INFO<<"Cam S/N & ID: "<<LEFT_CAM_SERIAL[count]<< ":"<<OPTICS_ID[count]<<endl;
+		}
+	} else {
+		DEBUG << "Unable to open: " << CAMERA_FILE << endl;
+	}
+
+}
 
 Rectifier::Rectifier()
 {
@@ -1269,4 +1475,5 @@ void Rectifier::getCameraParameters(double & cx_left,double &  cy_left,double & 
 	Ty = this->Ty;
 	Tz = this->Tz;
 }
+ 
  
