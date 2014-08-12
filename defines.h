@@ -34,6 +34,9 @@
 #define RING_BUFFER_SIZE	10
 #define WAIT_TIMEOUT_MS		10000
 
+// Save and folder defines
+#define DIRECTORY "img"
+
 // Other libs
 #include <sys/time.h>
 	

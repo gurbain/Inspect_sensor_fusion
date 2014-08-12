@@ -13,58 +13,44 @@
 #include "main.h"
 #include "utils.h"
 #include "defines.h"
-#include "camera.h"
-#include "orf.h"
+#include "halo.h"
 
 using namespace std;
 using namespace cv;
-using namespace orf;
-using namespace cam;
 
+
+// Allocate variables
+Halo halo;
+
+// Create a CTRL-C handler
+void my_handler(int s){
+	halo.close();
+	exit(1);
+}
 
 int main(int argc, char **argv) {
 	
 	init();
-
-	// Allocate variables
-	ORF tof;
-	Cameras stereo;
+	
+	// For catching a CTRL-C
+	signal(SIGINT,my_handler);
 	
 	// Initialize
-	tof.initOrf();
-	int retVal = stereo.initTwoCameras();
+	int retVal = halo.init();
 	if (retVal!=0) {
-		tof.closeOrf();
-		stereo.closeTwoCameras();
-		return -1;
-	}
-	retVal = stereo.startTwoCameras();
-	if (retVal!=0) {
-		tof.closeOrf();
-		stereo.closeTwoCameras();;
+		halo.close();
 		return -1;
 	}
 	
+	// Calibrate
+	//halo.calib();
+	
 	// Main loop
-	int flag = 0;
 	while(true) {
-		
-		// Create TimeStamp
-		TimeStamp ts, tsr;
-		ts.start();
-		
-		Mat leftNewImageFrame, rightNewImageFrame;
-		retVal = stereo.captureTwoImages(leftNewImageFrame, rightNewImageFrame, &stereo.rightImgNum, &stereo.leftImgNum, flag);
-		if (retVal!=0)
-			break;
 
-		
-		// Capture non rectified ToF images
-		Mat depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
-		retVal = tof.captureRectifiedOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame, tsr);
-		if (retVal==-1)
-			break;
-		ts.stop();
+		// Capture everything
+		Mat leftNewImageFrame, rightNewImageFrame, depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
+		halo.captureAllImages(leftNewImageFrame, rightNewImageFrame, depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame, SYNCHRONOUS);
 		
 		// Display everything
 		imshow("Depth", depthNewImageFrame);
@@ -72,9 +58,6 @@ int main(int argc, char **argv) {
 		imshow("Confidency", confidenceNewImageFrame);
 		imshow("Left", leftNewImageFrame);
 		imshow("Right", rightNewImageFrame);
-
-		// Display timeStamps
-		INFO<<"Time stamp: "<<tsr.getProcTime()<<"ms of processing at "<<tsr.getMeanTime()<<"ms"<<endl;
 		
 		// Handle pause/unpause and ESC
 		int c = cvWaitKey(1);
@@ -93,8 +76,7 @@ int main(int argc, char **argv) {
  	}
  	
  	// Close cameras
- 	tof.closeOrf();
- 	stereo.closeTwoCameras();
+ 	halo.close();
 	
 	return 0;
 }

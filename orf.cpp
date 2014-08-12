@@ -11,32 +11,7 @@
 
 #include "orf.h"
 
-
-using namespace orf;
 using namespace std;
-
-string type2str(int type) {
-	string r;
-
-	uchar depth = type & CV_MAT_DEPTH_MASK;
-	uchar chans = 1 + (type >> CV_CN_SHIFT);
-
-	switch ( depth ) {
-	case CV_8U:  r = "8U"; break;
-	case CV_8S:  r = "8S"; break;
-	case CV_16U: r = "16U"; break;
-	case CV_16S: r = "16S"; break;
-	case CV_32S: r = "32S"; break;
-	case CV_32F: r = "32F"; break;
-	case CV_64F: r = "64F"; break;
-	default:     r = "User"; break;
-	}
-
-	r += "C";
-	r += (chans+'0');
-
-	return r;
-}
 
 //////////////////////////
 //////  Constructor //////
@@ -46,7 +21,8 @@ orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
 imgWidth(640), imgHeight(480), 
 boardWidth (6), boardHeight (11),
 numberBoards (10), squareSize (250),
-acqStep (20)
+acqStep (20), imgNum(0), tslast(0),
+timestamps("timestamp.txt")
 {
 	imageSize = Size(imgWidth, imgHeight);
 	boardSize = Size(boardWidth, boardHeight);
@@ -117,10 +93,14 @@ int ORF::initOrf(bool auto_exposure, int integration_time, int modulation_freq, 
 	size_t buffer_size = rows_ * cols_ * 3 * sizeof (float);
 	buffer_ = (float*)malloc (buffer_size);
 	memset (buffer_, 0xaf, buffer_size);
-
 	xp_ = buffer_;
 	yp_ = &xp_[rows_*cols_];
 	zp_ = &yp_[rows_*cols_];
+	
+	// Create a new timestamp file
+	tsfile.open(timestamps.c_str());
+	if (tsfile.is_open())
+		tsfile<<endl<<endl<<"######################### NEW SESSION #######################"<<endl<<endl;
 	
 	return 0;
 }
@@ -146,12 +126,21 @@ void ORF::SafeCleanup() {
 //////////////////////////
 int ORF::closeOrf() 
 {
+	// Close file timestamp
+	if (tsfile.is_open()) {
+		INFO<<"Close "<<timestamps<<"file"<<endl;
+		tsfile.close();
+	}
+	
+	// Close camera
 	if (orfCam_)
 		if (SR_Close (orfCam_))
 			DEBUG<<"Unable to close the camera!"<<endl;
 
 	// Free resources
 	SafeCleanup();
+	
+	INFO<<"ORF camera has been closed"<<endl;
 
 	return 0;
 }
@@ -180,7 +169,7 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 	}
 
 	// Points array
-	retVal = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
+	//retVal = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
 
 	// Fill the pictures
 	Mat depth(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 0));
@@ -196,33 +185,11 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 	// Image processing
 	normalize(visualNewImageFrame, visualNewImageFrame, 0, 255, NORM_MINMAX, CV_8UC1);
 	equalizeHist(visualNewImageFrame, visualNewImageFrame);
-	// 	Mat depth2, depth3;
-//  	depth.convertTo(depth, CV_8U, 0.00390625);
-// 	visual.convertTo(visual, CV_8U, 0.00390625);
-// 	confidence.convertTo(confidence, CV_8U, 0.00390625);
-	//GaussianBlur(depth, depth2,Size(15,15), 1.0);
-	//GaussianBlur(depth, depth3,Size(30,30), 1.0);
-	//normalize(depth, depth, 0, 255, NORM_MINMAX, CV_8UC1);
-// 	normalize(depth2, depth2, 0, 255, NORM_MINMAX, CV_8UC1);
-// 	normalize(depth3, depth3, 0, 255, NORM_MINMAX, CV_8UC1);
-	//normalize(confidence, confidence, 0, 255, NORM_MINMAX, CV_8UC1);
-// 	equalizeHist(depth, depth);
-// 	equalizeHist(depth2, depth2);
-// 	equalizeHist(depth3, depth3);
-
-	//equalizeHist(confidence, confidence);
-	//blur(depth, depth2,Size(5,5));
-
-// 	imshow("Depth", depth);
-//  	//imshow("Depth2", depth2);
-// // 	imshow("Depth3", depth3);
-// 	imshow("Intensity", visual);
-// 	imshow("Confidence", confidence);
-
+	
 	// Stop the timeStamp
 	ts.stop();
 	
-	return 1;
+	return 0;
 }
 
 //////////////////////////
@@ -392,7 +359,7 @@ int ORF::intrinsicCalib(string filename)
 	// Capture first image
 	TimeStamp t;
 	int retVal = captureOrf(dt, it, ct, t);
-	if (retVal!=1)
+	if (retVal!=0)
 		return -1;
 	
 
@@ -404,21 +371,7 @@ int ORF::intrinsicCalib(string filename)
 
 			// Draw it if applicable
 			drawChessboardCorners(it, boardSize, Mat(imagePoints[successes]), found);
-			
-// 			// Save it just in case
-// 			stringstream ss;
-// 			string name = "TOF";
-// 			string type = ".jpg";
-// 			ss<<name<<(frame + 1)<<type;
-// 			string filename = ss.str();
-// 			ss.str("");
-// 			try {
-// 				imwrite(filename, it);
-// 			} catch (int ex) {
-// 				ERROR<<"Exception converting image to jpg format: "<<ex<<endl;
-// 				return -1;
-// 			}
-				
+
 			// Add point if we find them
 			if(found){
 				objectPoints[successes] = Create3DChessboardCorners(boardSize, squareSize);
@@ -452,7 +405,7 @@ int ORF::intrinsicCalib(string filename)
 		
 		// Get next image
 		int retVal = captureOrf(dt, it, ct, t);
-		if (retVal!=1)
+		if (retVal!=0)
 			return -1;
 	}
 	
@@ -470,7 +423,7 @@ int ORF::intrinsicCalib(string filename)
 	// Print saving info
 	INFO<<"Calibration matrixes has been saved in "<<filename<<endl;
 	
-	return 1;
+	return 0;
 }
 
 int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, string filename)
@@ -516,7 +469,7 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 	Mat dt, it, ct;
 	TimeStamp t;
 	retVal = captureOrf(dt, it, ct, t);
-	if (retVal!=1)
+	if (retVal!=0)
 		return -1;
 	
 	// Remap the image
@@ -527,5 +480,58 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 	// Stop the timeStamp
 	ts.stop();
 	
-	return 1;
+	return 0;
+}
+
+int ORF::saveRectifiedOrf()
+{
+	// Create variables to save
+	TimeStamp ts;
+	Mat depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame;
+	
+	// Capture images
+	this->captureRectifiedOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame, ts);
+	
+	//Save jpg images
+	mkdir(DIRECTORY, 0777);
+	stringstream ssd, ssv, ssc;
+	string named = "orfDepth";
+	string namev = "orfVisual";
+	string namec = "orfConfidency";
+	string type = ".png";
+	ssd<<DIRECTORY<<"/"<<named<<imgNum<<type;
+	ssv<<DIRECTORY<<"/"<<namev<<imgNum<<type;
+	ssc<<DIRECTORY<<"/"<<namec<<imgNum<<type;
+	string filenamed = ssd.str();
+	string filenamev = ssv.str();
+	string filenamec = ssc.str();
+	ssd.str("");
+	ssv.str("");
+	ssc.str("");
+	
+	try {
+		imwrite(filenamed, depthNewImageFrame);
+		imwrite(filenamev, visualNewImageFrame);
+		imwrite(filenamec, confidenceNewImageFrame);
+	} catch (int ex) {
+		ERROR<<"Exception converting image to jpg format: "<<ex<<endl;
+		return -1;
+	}
+	
+	// Save time stamp
+	if (!tsfile.is_open()) {
+		tsfile.open(timestamps.c_str());
+		if (!tsfile.is_open()) {
+			ERROR<<"Impossible to open the file"<<endl;
+			return -1;
+		}
+	}
+	if (imgNum==0)
+		INFO<<"Saving image files into folder "<<DIRECTORY<<endl;
+	tsfile<<"IMAGENUM\t"<<imgNum<<"\tPROCTIME\t"<<ts.getProcTime()<<"\tMEANTIME\t"<<ts.getMeanTime()<<"\tDIFF\t"<<ts.getMeanTime()-tslast<<endl;
+
+	imgNum++;
+	tslast = ts.getMeanTime();
+	
+	return 0;
 }

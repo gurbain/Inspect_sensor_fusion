@@ -6,7 +6,7 @@ endif(COMMAND cmake_policy)
 set(CMAKE_BUILD_TYPE Debug)
 
 ## Add src and target
-ADD_EXECUTABLE(Main camera.cpp orf.cpp main.cpp utils.cpp)
+ADD_EXECUTABLE(Main utils.cpp camera.cpp orf.cpp halo.cpp main.cpp)
 
 ## Add MESA SR libaries
 FIND_PATH( MESASR_INCLUDE_PATH libMesaSR.h

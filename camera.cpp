@@ -11,7 +11,6 @@
 
 #include "camera.h"
 
-using namespace cam;
 
 Cameras::Cameras() : 
 iterDummy(0),
@@ -23,7 +22,6 @@ act_img_buf1(NULL), act_img_buf2(NULL), last_img_buf1(NULL), last_img_buf2(NULL)
 hwGain(100)
 {
 	sprintf(CAMERA_1_SERIAL, "4002795734"); // this is the serial number of the left camera, a standard initialization
-	parseParameterFile();
 }
 
 int Cameras::getImageWidth()
@@ -115,6 +113,7 @@ void Cameras::setCam1Serial(const char* serialNum)
 
 unsigned int Cameras::initTwoCameras()
 {
+	parseParameterFile();
 	if (this->reduceImageSizeTo320x240)
 	{
 		this->numberOfBytesToCopy = 76800;
@@ -181,17 +180,17 @@ unsigned int Cameras::stopTwoCameras()
 
 }
 
-unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, int& synchCheckFlag)
+unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag)
 {
 
 	if (this->useSynchCams)
 	{
-		this->captureTwoImagesSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, synchCheckFlag);
+		this->captureTwoImagesSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts, synchCheckFlag);
 	}
 
 	else
 	{
-		this->captureTwoImagesNotSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2);
+		this->captureTwoImagesNotSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts);
 	}
 
 }
@@ -526,24 +525,21 @@ unsigned int Cameras::closeTwoCamerasSynch()
 {
 	int i, retVal;
 
+	
 	for(i = 0; i < this->imgBufferCount; i++)
 	{
 		//deallocate image memory
 		retVal = is_FreeImageMem(h_cam1, this->Cam1_ringbuffer[i].pBuf, this->Cam1_ringbuffer[i].img_id);
 		if (retVal != IS_SUCCESS)
-		{
 			DEBUG<<"FreeImageMem Failed (Code: "<<retVal<<")"<<endl;
-			return retVal;
-		}
+		
 		this->Cam1_ringbuffer[i].pBuf = NULL;
 		this->Cam1_ringbuffer[i].img_id = 0;
 
 		retVal = is_FreeImageMem(h_cam2, this->Cam2_ringbuffer[i].pBuf, this->Cam2_ringbuffer[i].img_id);
 		if (retVal != IS_SUCCESS)
-		{
 			DEBUG<<"FreeImageMem Failed (Code: "<<retVal<<")"<<endl;
-			return retVal;
-		}
+		
 		this->Cam2_ringbuffer[i].pBuf = NULL;
 		this->Cam2_ringbuffer[i].img_id = 0;
 
@@ -551,15 +547,13 @@ unsigned int Cameras::closeTwoCamerasSynch()
 
 	//close camera 1 & 2
 	if(h_cam1)
-	{
 		is_ExitCamera(h_cam1);
-	}
 	h_cam1 = 0;
 	if(h_cam2)
-	{
 		is_ExitCamera(h_cam2);
-	}
 	h_cam2 = 0;
+	
+	INFO<<"Stereo cameras have been closed"<<endl;
 
 	return 0;
 }
@@ -609,72 +603,128 @@ unsigned int Cameras::stopTwoCamerasSynch()
 }
 
 
-unsigned int Cameras::captureTwoImagesSynch(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, int& synchCheckFlag)
+unsigned int Cameras::captureTwoImagesSynch(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag)
 {
+	// Start the timeStamp
+	ts.start();
+	
 	int retVal;
+	iterDummy++;
 
-	// Is Waiting??
+	//this function is not documented in the programmers manual
+	//it is mentioned in README.TXT and used in the demo program...
+	//the parameters are (camera_handle, event_type, timeout_in_ms)
+
+
 	retVal = is_WaitEvent(h_cam1, IS_SET_EVENT_FRAME, WAIT_TIMEOUT_MS);
 	if (retVal != IS_SUCCESS)
 	{
-		ERROR<<"Is wait event Failed (Code: "<<retVal<<")"<<endl;
+		printf("Is wait event Failed (Code: %d)\n", retVal);
 		return retVal;
+	}
+
+
+	if (iterDummy > 1)
+	{
+
+		// Unlock active image buffer for camera 2
+		retVal = is_UnlockSeqBuf (h_cam2, (rightImgNum), (this->act_img_buf2));
+		if (retVal != IS_SUCCESS)
+		{
+			printf("is_UnlockSeqBuf for active buffer Failed (Code: %d)\n", retVal);
+			return retVal;
+		}
+
+		prevImgNum = rightImgNum -1;
+		if (rightImgNum == 1)
+			prevImgNum = imgBufferCount;
+/*
+		// Unlock last image buffer for camera 2
+//		retVal = is_UnlockSeqBuf (h_cam2, IS_IGNORE_PARAMETER, (this->last_img_buf2));
+		retVal = is_UnlockSeqBuf (h_cam2, prevImgNum, (this->last_img_buf2));
+		if (retVal != IS_SUCCESS)
+		{
+			printf("is_UnlockSeqBuf for last buffer Failed (Code: %d)\n", retVal);
+			return retVal;
+		}
+		*/
 	}
 
 	retVal = is_WaitEvent(h_cam2, IS_SET_EVENT_FRAME, WAIT_TIMEOUT_MS);
 	if (retVal != IS_SUCCESS)
 	{
-		ERROR<<"Is wait event Failed (Code: "<<retVal<<")"<<endl;
+		printf("Is wait event Failed (Code: %d)\n", retVal);
 		return retVal;
 	}
 
-	// Capture image into images
-// 	Mat data1(size(this->imgWidth, this->imgHeight), IPL_DEPTH_8U, 1);
-// 	Mat data2(size(this->imgWidth, this->imgHeight), IPL_DEPTH_8U, 1);
-// 	if (h_cam1 !=0) {
-// 		INT dummy;
-// 		char *pMem, *pLast;
-// 		double fps = 0.0;
-// 
-// 		if (is_FreezeVideo (h_cam1, IS_WAIT) == IS_SUCCESS) {
-// 			m_Ret = is_GetActiveImageMem(h_cam1, &pLast, &dummy);
-// 			m_Ret = is_GetImageMem(h_cam1, (void**)&pLast);
-// 		}
-// 	
-// 	}
-// 	 memory initialization
-//         is_AllocImageMem (m_hCam, m_nSizeX, m_nSizeY, m_nBitsPerPixel, &m_pcImageMemory, &m_lMemoryId);
-//         set memory active
-//         is_SetImageMem (m_hCam, m_pcImageMemory, m_lMemoryId);
-// 	data1.data = &m_pcImageMemory;
-// 
-// 
-// 	leftNewImageFrame.data = (char*) this->last_img_buf1;
-// 	rightNewImageFrame.data = (char*) this->last_img_buf2;
-// 
-// 	check if last_img_buf position has changed
-// 	if not, current frames are out of synch --> don't change frames (= use previous frames) and return synchCheckFlag = -1
-// 	if(this->last_img_buf1 == bufDummy1 || this->last_img_buf2 == bufDummy2)
-// 	{
-// 		synchCheckFlag = -1;
-// 	}
-// 	else
-// 	{
-// 		leftNewImageFrame.data = (uchar*) this->last_img_buf1;
-// 		rightNewImageFrame.data = (uchar*) this->last_img_buf2;
-// 
-// 		synchCheckFlag = 0;
-// 
-// 	}
-// 
-// 	this->bufDummy1 = this->last_img_buf1;
-// 	this->bufDummy2 = this->last_img_buf2;
+	retVal = is_GetActSeqBuf (h_cam2, &rightImgNum, &(this->act_img_buf2), &(this->last_img_buf2));
+	if (retVal != IS_SUCCESS)
+	{
+		printf("GetActSeqBuf Failed (Code: %d)\n", retVal);
+		return retVal;
+	}
+	Mat right(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf2);
+	rightNewImageFrame = right;
+
+
+	// lock active image buffer for camera 2, this particular memory will be skipped while camera 2 is running in freerun mode
+	retVal = is_LockSeqBuf (h_cam2, rightImgNum, (this->act_img_buf2));
+	if (retVal != IS_SUCCESS)
+	{
+		printf("is_LockSeqBuf for active buffer Failed (Code: %d)\n", retVal);
+		return retVal;
+	}
+
+	prevImgNum = rightImgNum -1;
+	if (rightImgNum == 1)
+		prevImgNum = imgBufferCount;
 /*
-    if (h_cam1 !=0 ) {
-        //free old image mem.
-        is_FreeImageMem (h_cam1, m_pcImageMemory, m_lMemoryId);
-        is_ExitCamera (h_cam1);
-    }*/
+	// lock active last buffer for camera 2, this particular memory will be skipped while camera 2 is running in freerun mode
+	retVal = is_LockSeqBuf (h_cam2, prevImgNum, (this->last_img_buf2));
+//	retVal = is_LockSeqBuf (h_cam2, IS_IGNORE_PARAMETER, (this->last_img_buf2));
+	if (retVal != IS_SUCCESS)
+	{
+		printf("is_LockSeqBuf for last buffer Failed (Code: %d)\n", retVal);
+		return retVal;
+	}
+*/
+
+	retVal = is_GetActSeqBuf (h_cam1, &leftImgNum, &(this->act_img_buf1), &(this->last_img_buf1));
+	if (retVal != IS_SUCCESS)
+	{
+		printf("GetActSeqBuf Failed (Code: %d)\n", retVal);
+		return retVal;
+	}
+	Mat left(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf1);
+	leftNewImageFrame = left;
+
+	// get current time in ms for timestamp
+//	gettimeofday(&this->timeRAW,NULL);
+//	imageTimestamp = timeRAW.tv_sec*1000+timeRAW.tv_usec/1000; // ms
+//	imageTimestamp = imageTimestamp - zerotime;
+
+
+	// check if last_img_buf position has changed
+	// if not, current frames are out of synch --> don't change frames (= use previous frames) and return synchCheckFlag = -1
+	if(this->last_img_buf1 == bufDummy1 || this->last_img_buf2 == bufDummy2)
+	{
+		synchCheckFlag = -1;
+	}
+	else
+	{
+		Mat left(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf1);
+		Mat right(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf2);
+		leftNewImageFrame = left;
+		rightNewImageFrame = right;
+		synchCheckFlag = 0;
+
+	}
+
+	this->bufDummy1 = this->last_img_buf1;
+	this->bufDummy2 = this->last_img_buf2;
+
+	// Stop the timeStamp
+	ts.stop();
 	return 0;
 }
 
@@ -1003,6 +1053,8 @@ unsigned int Cameras::closeTwoCamerasNotSynch()
 		is_ExitCamera(h_cam2);
 	}
 	h_cam2 = 0;
+	
+	INFO<<"Stereo cameras have been closed"<<endl;
 
 	return 0;
 }
@@ -1048,15 +1100,15 @@ unsigned int Cameras::stopTwoCamerasNotSynch()
 	return 0;
 }
 
-unsigned int Cameras::captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2)
+unsigned int Cameras::captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts)
 {
 
 	int retVal;
 
-	//this function is not documented in the programmers manual
-	//it is mentioned in README.TXT and used in the demo program...
-	//the parameters are (camera_handle, event_type, timeout_in_ms)
-
+	// Start the timeStamp
+	ts.start();
+	
+	// Wait to see if not stuck
 	retVal = is_WaitEvent(h_cam1, IS_SET_EVENT_FRAME, WAIT_TIMEOUT_MS);
 	if (retVal != IS_SUCCESS)
 	{
@@ -1070,6 +1122,7 @@ unsigned int Cameras::captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::M
 		return retVal;
 	}
 
+	// Acquire datas
 	retVal = is_GetActSeqBuf(h_cam1, img_num1, &(this->act_img_buf1), &(this->last_img_buf1));
 	if (retVal != IS_SUCCESS)
 	{
@@ -1083,25 +1136,16 @@ unsigned int Cameras::captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::M
 		DEBUG<<"GetActSeqBuf Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
 	}
-// 	cout<<"Matrice: \n[";
-// 	for (int i=0; i<imgHeight; i++) {
-// 		for(int j=0; j<imgWidth; j++) {
-// 			cout<<" "<<(int)(uchar)this->last_img_buf1[j*4 + i];
-// 		}
-// 		cout<<";";
-// 	}
-// 	cout<<"]"<<endl;
+	
+	// Copy datas
 	Mat left(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf1);
 	Mat right(Size(imgWidth, imgHeight), CV_8U, this->last_img_buf2);
-// 	cout<<"LEFT"<<left<<endl;
 	leftNewImageFrame = left;
 	rightNewImageFrame = right;
 
-	// get current time in ms for timestamp
-//	gettimeofday(&this->timeRAW,NULL);
-//	imageTimestamp = timeRAW.tv_sec*1000+timeRAW.tv_usec/1000; // ms
-//	imageTimestamp = imageTimestamp - zerotime;
-
+	// Stop the timeStamp
+	ts.stop();
+	
 	return 0;
 }
 //// end of NotSynch cameras functions
@@ -1353,49 +1397,45 @@ void Cameras::parseParameterFile() {
 
 Rectifier::Rectifier()
 {
+	s = Size(imgwidth, imgheight);
 	rectifierOn = true;
 }
 
 int Rectifier::calcRectificationMaps(int imgwidth, int imgheight, const char calibParamDir[200])
 {
-	// file names and paths to intrinsics and extrinsics
-	// files are read by calcRectificationMaps
+	// Read filenames
 	sprintf(intrinsic_filename, "%s/intrinsics.yml", calibParamDir);
 	sprintf(extrinsic_filename, "%s/extrinsics.yml", calibParamDir);
-
-	INFO<<"Opening files: " << intrinsic_filename << ", " << extrinsic_filename << endl;
-
-    //read intrinsics and extrinsics
 	cv::FileStorage fs(intrinsic_filename, CV_STORAGE_READ);
-    if(!fs.isOpened())
-    {
-        ERROR<<"Failed to open file "<<intrinsic_filename<<endl;
-        INFO<<"Check camera calibration parameter directory environment variable and correct calibration set number" << endl;
-        return -1;
-    }
+	
+	// Open and retrieve variable from intrinsic file
+	if(!fs.isOpened()) {
+		ERROR<<"Failed to open file "<<intrinsic_filename<<endl;
+		INFO<<"Check camera calibration parameter directory environment variable and correct calibration set number" << endl;
+		return -1;
+	} else {
+		INFO<<"Intrinsic file opened: " << intrinsic_filename<< endl;
+	}
+	fs["M1"] >> M1;
+	fs["D1"] >> D1;
+	fs["M2"] >> M2;
+	fs["D2"] >> D2;
 
-    fs["M1"] >> M1;
-    fs["D1"] >> D1;
-    fs["M2"] >> M2;
-    fs["D2"] >> D2;
+	// Open and retrieve variable from extrinsic file
+	fs.open(extrinsic_filename, CV_STORAGE_READ);
+	if(!fs.isOpened()) {
+		ERROR<<"Failed to open file "<<extrinsic_filename<<endl;
+		return -1;
+	}
+	fs["R"] >> R;
+	fs["T"] >> T;
 
-    fs.open(extrinsic_filename, CV_STORAGE_READ);
-    if(!fs.isOpened())
-    {
-        ERROR<<"Failed to open file "<<extrinsic_filename<<endl;
-        return -1;
-    }
+	//compute rectification matrices
+	stereoRectify( M1, D1, M2, D2, s, R, T, R1, R2, P1, P2, Q, CV_CALIB_ZERO_DISPARITY, 0, s, &roi1, &roi2 );
 
-    fs["R"] >> R;
-    fs["T"] >> T;
-
-    //compute rectification matriciesC
-    stereoRectify( M1, D1, M2, D2, cv::Size(imgwidth, imgheight), R, T, R1, R2, P1, P2, Q, CV_CALIB_ZERO_DISPARITY,
-    		0, cv::Size(640,480), &roi1, &roi2 );
-
-    //compute rect maps
-    cv::initUndistortRectifyMap(M1, D1, R1, P1, cv::Size(imgwidth, imgheight), CV_16SC2, this->LeftRectMap1, this->LeftRectMap2);
-    cv::initUndistortRectifyMap(M2, D2, R2, P2, cv::Size(imgwidth, imgheight), CV_16SC2, this->RightRectMap1, this->RightRectMap2);
+	//compute rect maps
+	initUndistortRectifyMap(M1, D1, R1, P1, Size(imgwidth, imgheight), CV_16SC2, this->LeftRectMap1, this->LeftRectMap2);
+	initUndistortRectifyMap(M2, D2, R2, P2, Size(imgwidth, imgheight), CV_16SC2, this->RightRectMap1, this->RightRectMap2);
 
 	f = P1.at<double>(0,0);
 	Tx = T.at<double>(0,0)*0.0254/(6*1.0e-6);
@@ -1410,17 +1450,18 @@ int Rectifier::calcRectificationMaps(int imgwidth, int imgheight, const char cal
 
 int Rectifier::rectifyImages(cv::Mat& leftImgFrame, cv::Mat& rightImgFrame)
 {
+	// Create dummies
+	Mat leftDummyImage, rightDummyImage;
 
-	cv::Mat leftDummyImage;
-	cv::remap(leftImgFrame, leftDummyImage, this->LeftRectMap1, this->LeftRectMap2, CV_INTER_LINEAR);
-    leftImgFrame = leftDummyImage;
-
-    cv::Mat rightDummyImage;
-    cv::remap(rightImgFrame, rightDummyImage, this->RightRectMap1, this->RightRectMap2, CV_INTER_LINEAR);
-    rightImgFrame = rightDummyImage;
+	// Remap
+	remap(leftImgFrame, leftDummyImage, this->LeftRectMap1, this->LeftRectMap2, CV_INTER_LINEAR);
+	remap(rightImgFrame, rightDummyImage, this->RightRectMap1, this->RightRectMap2, CV_INTER_LINEAR);
+	
+	// Copy dummies into new images
+	leftImgFrame = leftDummyImage;
+	rightImgFrame = rightDummyImage;
 
 	return 0;
-
 }
 
 
@@ -1428,40 +1469,38 @@ void Rectifier::getCameraParameters(cv::Mat& Qin, cv::Mat& Rin, cv::Mat& Tin, cv
 		cv::Mat& R2in, cv::Mat& P2in, cv::Mat& M1in, cv::Mat& D1in, cv::Mat& M2in, cv::Mat& D2in,
 		double& Txin, double& Tyin, double& Tzin, double& fin, double& cxin, double& cyin)
 {
-
-    Qin = this->Q;
-    Rin = this->R;
-    Tin = this->T;
-    R1in = this->R1;
-    P1in = this->P1;
-    R2in = this->R2;
-    P2in = this->P2;
-    M1in = this->M1;
-    D1in = this->D1;
-    M2in = this->M2;
-    D2in = this->D2;
-    Txin = this->Tx;
-    Tyin = this->Ty;
-    Tzin = this->Tz;
-    fin = this->f;
-    cxin = this->cx;
-    cyin = this->cy;
-
+	Qin = this->Q;
+	Rin = this->R;
+	Tin = this->T;
+	R1in = this->R1;
+	P1in = this->P1;
+	R2in = this->R2;
+	P2in = this->P2;
+	M1in = this->M1;
+	D1in = this->D1;
+	M2in = this->M2;
+	D2in = this->D2;
+	Txin = this->Tx;
+	Tyin = this->Ty;
+	Tzin = this->Tz;
+	fin = this->f;
+	cxin = this->cx;
+	cyin = this->cy;
 }
 
 void Rectifier::getCameraParameters(cv::Mat& Qin)
 {
-    Qin = this->Q;
+	Qin = this->Q;
 }
 
 
 void Rectifier::getCameraParameters(cv::Mat& Rin, cv::Mat& Tin, cv::Mat& M1in, cv::Mat& D1in, cv::Mat& M2in, cv::Mat& D2in) {
-    Rin = this->R;
-    Tin = this->T;
-    M1in = this->M1;
-    D1in = this->D1;
-    M2in = this->M2;
-    D2in = this->D2;
+	Rin = this->R;
+	Tin = this->T;
+	M1in = this->M1;
+	D1in = this->D1;
+	M2in = this->M2;
+	D2in = this->D2;
 }
 
 void Rectifier::getCameraParameters(double & cx_left,double &  cy_left,double &  cx_right,double &  cy_right,double &  f_left,double &  f_right,double &  Tx,double &  Ty,double &  Tz) {
@@ -1475,5 +1514,3 @@ void Rectifier::getCameraParameters(double & cx_left,double &  cy_left,double & 
 	Ty = this->Ty;
 	Tz = this->Tz;
 }
- 
- 

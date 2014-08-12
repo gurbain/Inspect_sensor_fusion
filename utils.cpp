@@ -19,7 +19,7 @@ TimeStamp::TimeStamp()
 	timeInit = timeValInit;
 	meanTime = 0;
 	procTime = 0;
-	gettimeofday(&timeBegin, NULL);
+	initTime = timeInit.tv_sec*1000 + timeInit.tv_usec/1000;
 }
 
 TimeStamp::~TimeStamp() 
@@ -42,11 +42,10 @@ void TimeStamp::stop()
 		DEBUG<<"You must start a time stamp defore stopping it"<<endl;
 	} else {
 		gettimeofday(&timeEnd, NULL);
-		int init = timeInit.tv_sec*1000 + timeInit.tv_usec/1000;
-		int start = timeBegin.tv_sec*1000 + timeBegin.tv_usec/1000 - init;
-		int end = timeEnd.tv_sec*1000 + timeEnd.tv_usec/1000 - init;
-		procTime = end - start;
-		meanTime = (start + end)/2;
+		startTime = timeBegin.tv_sec*1000 + timeBegin.tv_usec/1000 - initTime;
+		stopTime = timeEnd.tv_sec*1000 + timeEnd.tv_usec/1000 - initTime;
+		procTime = stopTime - startTime;
+		meanTime = (startTime + stopTime)/2;
 		isRunning = false;
 	}
 }
@@ -69,17 +68,35 @@ int TimeStamp::getMeanTime()
 	}
 }
 
+int TimeStamp::getStartTime()
+{
+	if (isRunning==true) {
+		return -1;
+	} else {
+		return startTime;
+	}
+}
+
+int TimeStamp::getStopTime()
+{
+	if (isRunning==true) {
+		return -1;
+	} else {
+		return stopTime;
+	}
+}
+
 bool TimeStamp::isSynchro(TimeStamp t)
 {
 	if (isRunning==true) {
 		return false;
 	} else {
 		int proc1 = t.getProcTime();
-		int mean1 = t.getProcTime();
+		int mean1 = t.getMeanTime();
 		if (proc1==-1 || mean1==-1) {
 			return false;
 		} else {
-			if (abs(mean1-meanTime)<DELTATMIN && abs(mean1+proc1/2-meanTime+procTime/2)<DELTATMAX && (meanTime+procTime/2-mean1+proc1/2)<DELTATMAX)
+			if (abs(mean1-meanTime)<DELTATMIN && abs(mean1+proc1/2-meanTime+procTime/2)<DELTATMAX && abs(meanTime+procTime/2-mean1+proc1/2)<DELTATMAX)
 				return true;
 		}
 	}

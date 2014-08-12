@@ -36,7 +36,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/version.h>
-#include<fstream>
+#include <fstream>
+#include <signal.h>
 
 void init();
 int main(int argc, char **argv);

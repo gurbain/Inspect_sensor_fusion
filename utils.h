@@ -36,8 +36,8 @@
 #include <linux/version.h>
 
 // Defines
-#define DELTATMIN	50
-#define DELTATMAX	150
+#define DELTATMIN	150
+#define DELTATMAX	300
 
 using namespace std;
 
@@ -53,6 +53,9 @@ class TimeStamp {
 		timeval timeInit;
 		int meanTime;
 		int procTime;
+		int startTime;
+		int stopTime;
+		int initTime;
 		bool isRunning;
 	
 	
@@ -63,6 +66,8 @@ class TimeStamp {
 		void stop();
 		int getProcTime();
 		int getMeanTime();
+		int getStartTime();
+		int getStopTime();
 		bool isSynchro(TimeStamp t);
 };
 
