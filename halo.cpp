@@ -73,7 +73,6 @@ int Halo::captureAllImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag
 {
 	int retVal;
 	int flags;
-	int flag=ASYNCHRONOUS;
 
 	// Create TimeStamp
 	TimeStamp ts, tsr;
