@@ -1,0 +1,1 @@
+/usr/bin/c++   -O3 -DNDEBUG    CMakeFiles/bundle_varying.dir/bundle_varying.cpp.o  -o bundle_varying  -L/home/gabs48/src/testsVertigo/code/SSBA-3.0 -rdynamic ../libV3D.a ../libcolamd.a -Wl,-rpath,/home/gabs48/src/testsVertigo/code/SSBA-3.0 

@@ -1,0 +1,2 @@
+/usr/bin/ar cr libcolamd.a  CMakeFiles/colamd.dir/COLAMD/Source/colamd_global.c.o CMakeFiles/colamd.dir/COLAMD/Source/colamd.c.o CMakeFiles/colamd.dir/SuiteSparse_config/SuiteSparse_config.c.o
+/usr/bin/ranlib libcolamd.a

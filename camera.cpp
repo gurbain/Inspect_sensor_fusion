@@ -133,67 +133,102 @@ unsigned int Cameras::initTwoCameras()
 	{
 		this->initTwoCamerasNotSynch();
 	}
+	
+	this->load_image = false;
 
+}
+
+unsigned int Cameras::initTwoCameras(string dir)
+{
+	this->load_directory = dir;
+	this->load_image = true;
+	
+	return 0;
 }
 
 unsigned int Cameras::closeTwoCameras()
 {
+	if (!load_image) {
+		if (this->useSynchCams)
+		{
+			this->closeTwoCamerasSynch();
+		}
 
-	if (this->useSynchCams)
-	{
-		this->closeTwoCamerasSynch();
-	}
-
-	else
-	{
-		this->closeTwoCamerasNotSynch();
+		else
+		{
+			this->closeTwoCamerasNotSynch();
+		}
 	}
 
 }
 unsigned int Cameras::startTwoCameras()
 {
+	if (!load_image) {
+		if (this->useSynchCams)
+		{
+			this->startTwoCamerasSynch();
+		}
 
-	if (this->useSynchCams)
-	{
-		this->startTwoCamerasSynch();
-	}
-
-	else
-	{
-		this->startTwoCamerasNotSynch();
+		else
+		{
+			this->startTwoCamerasNotSynch();
+		}
 	}
 
 }
 
 unsigned int Cameras::stopTwoCameras()
 {
+	if (!load_image) {
+		if (this->useSynchCams)
+		{
+			this->stopTwoCamerasSynch();
+		}
 
-	if (this->useSynchCams)
-	{
-		this->stopTwoCamerasSynch();
-	}
-
-	else
-	{
-		this->stopTwoCamerasNotSynch();
+		else
+		{
+			this->stopTwoCamerasNotSynch();
+		}
 	}
 
 }
 
-unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag)
+unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag, int num)
 {
+	// If we are loading image from file
+	if (load_image) {
+		// Set the names
+		char buffer[10];
+		sprintf(buffer, "%i", num);
+		string filenamel = string(this->load_directory) + "/leftImg" + buffer + ".png";
+		string filenamer = string(this->load_directory) + "/rightImg" + buffer + ".png";
 
-	if (this->useSynchCams)
-	{
-		this->captureTwoImagesSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts, synchCheckFlag);
-	}
+		// Recover images
+		try {
+			leftNewImageFrame = imread(filenamel);
+			rightNewImageFrame = imread(filenamer);
+		} catch (int ex) {
+			ERROR<<"Exception when reading OpticsMount file "<<ex<<endl;
+			return -1;
+		}
+	
+	// Else, we are capturing images
+	} else {
+		if (this->useSynchCams)
+		{
+			this->captureTwoImagesSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts, synchCheckFlag);
+		}
 
-	else
-	{
-		this->captureTwoImagesNotSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts);
+		else
+		{
+			this->captureTwoImagesNotSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts);
+		}
 	}
+	
+	return 0;
 
 }
+
 
 ///////////////////////////////////////////////////////////////
 //// Begin of Synch functions
@@ -1395,6 +1430,140 @@ void Cameras::parseParameterFile() {
 
 }
 
+int Cameras::calib()
+{
+// 	// Capture images
+// 	Mat iL, iR, dT, vT, cT;
+// 	vector<vector<Point2f> > imagePointsL(numberBoards), imagePointsR(numberBoards);
+// 	vector<vector<Point3f> > objectPoints(numberBoards);
+// 	
+// 	// Usefull variables
+// 	int retVal;
+// 	int successes = 0;
+// 	int step, frame = 0;
+// 	bool foundR = false, foundL = false;
+// 	
+// 	// Capture images
+// 	retVal = loadTwoImages(iL, iR,);
+// 	// Capture numberBoards images
+// 	while(successes < numberBoards) {
+// 		if((frame++ % acqStep)==0){
+// 			// Find chessboard corners:
+// 			foundT = findChessboardCorners(vT, boardSize, imagePointsT[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
+// 			if (foundT) {
+// 				foundL = findChessboardCorners(iL, boardSize, imagePointsL[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
+// 				if (foundL) {
+// 					foundR = findChessboardCorners(iR, boardSize, imagePointsR[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
+// 				}
+// 			}
+// 			//INFO<<"Checkerboard found state : ["<<foundL<<", "<<foundR<<", "<<foundT<<" ]"<<endl; 
+// 
+// 			// If sth found
+// 			if(foundL && foundR && foundT){	
+// 				// Draw it if applicable
+// 				essai = &iL;
+// 				drawChessboardCorners(iL, boardSize, Mat(imagePointsL[successes]), foundL);
+// 				drawChessboardCorners(iR, boardSize, Mat(imagePointsR[successes]), foundR);
+// 				drawChessboardCorners(vT, boardSize, Mat(imagePointsT[successes]), foundT);
+// 				
+// 				// Add point
+// 				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
+// 				successes++;
+// 				INFO<<"Checkerboard found : "<<successes<<" numImg: "<<this->loadNum<<endl; 
+// 			}
+// 		}
+// 		
+// 		// Show the result
+// 		imshow("Calib left", iL);
+// 		imshow("Calib right", iR);
+// 		imshow("Calib orf", vT);
+// 
+// 		// Handle pause/unpause and ESC
+// 		int c = cvWaitKey(15);
+// 		if(c == 'p') {
+// 			DEBUG<<"Acquisition is now paused"<<endl;
+// 			c = 0;
+// 			while(c != 'p' && c != 27){
+// 				c = cvWaitKey(250);
+// 			}
+// 			DEBUG<<"Acquisition is now unpaused"<<endl;
+// 		}
+// 		if(c == 27) {
+// 			DEBUG<<"Acquisition has been stopped by user"<<endl;
+// 			return 0;
+// 		}
+// 		// Get next image
+// 		retVal = loadAllImages(iL, iR, dT, vT, cT);
+// 	}
+// 	circle(*essai, imagePointsL[0][0], 5, Scalar(255,0,0));
+// 	circle(*essai, imagePointsL[0][1], 5, Scalar(0,255,0));
+// 	circle(*essai, imagePointsL[0][2], 5, Scalar(0,0,255));
+// 	circle(*essai, imagePointsL[0][3], 5, Scalar(255,255,0));
+// 	imshow("Reperage", *essai);
+// 	cvWaitKey(0);
+// 	
+// 	// Save data
+// 	FileStorage storage("test.xml", FileStorage::WRITE);
+// 	storage<<"imagePointsL"<<imagePointsL;
+// 	storage<<"imagePointsR"<<imagePointsR;
+// 	storage<<"imagePointsT"<<imagePointsT;
+// 	storage.release();	
+// 
+// 	// STEP 2 :: For each point, compute depth from stereo cameras in L reference
+// 	
+// 	// Triangulate stereo points
+// 	cv::Mat distcoeff;
+// 	vector<KeyPoint> correspRPt;
+// 	vector<Point3d> pointcloud;
+// 	Mat cloudp;
+// // 	vector<KeyPoint> ptSetL, ptSetR;
+// // 	PointsToKeyPoints(imagePointsL[0], ptSetL);
+// // 	PointsToKeyPoints(imagePointsR[0], ptSetR);
+// // 	Matx34d M1(rect.R1.at<double>(0,0), rect.R1.at<double>(0,1), rect.R1.at<double>(0, 2), 0,
+// // 		   rect.R1.at<double>(1,0), rect.R1.at<double>(1,1), rect.R1.at<double>(1, 2), 0,
+// // 		   rect.R1.at<double>(2,0), rect.R1.at<double>(2,1), rect.R1.at<double>(2, 2), 0);
+// // 	Matx34d M2(rect.R2.at<double>(0,0), rect.R2.at<double>(0,1), rect.R2.at<double>(0, 2), rect.T.at<double>(0, 0),
+// // 		   rect.R2.at<double>(1,0), rect.R2.at<double>(1,1), rect.R2.at<double>(1, 2), rect.T.at<double>(0, 1),
+// // 		   rect.R2.at<double>(2,0), rect.R2.at<double>(2,1), rect.R2.at<double>(2, 2), rect.T.at<double>(0, 2));
+// // 	
+// 	cout<<"P1 "<<rect.P1<<endl;
+// 	cout<<"P2 "<<rect.P2<<endl;
+// 	//triangulatePoints(rect.P1, rect.P2, imagePointsL[0], imagePointsR[0], cloudp);
+// 	SimpleTriangulator triangle(rect);
+// 	Point3d newPoint;
+// 	DEBUG<<"f "<<rect.f<<" Tx: "<<rect.Tx<<" cx: "<<rect.cx<<" cy: "<<rect.cy<<endl;
+// 	for (int i=0; i<66; i++) {
+// 		newPoint = triangle.triangulate((double)imagePointsL[0][i].y, (double)imagePointsR[0][i].y, (double)imagePointsL[0][i].x);
+// // 		newPoint.x = cloudp.at<float>(4*i);
+// // 		newPoint.y = cloudp.at<float>(4*i+1);
+// // 		newPoint.z = cloudp.at<float>(4*i+2);
+// 		DEBUG<<imagePointsL[0][i].x<<" et "<<imagePointsR[0][i].x<<endl;
+// 		DEBUG<<"Point "<<i+1<<": X="<<newPoint.x<<" ; Y="<<newPoint.y<<" ; Z="<<newPoint.z<<endl;
+// 		pointcloud.push_back(newPoint);
+// 	}
+// 
+// 	
+// 	//TriangulatePoints(ptSetL, ptSetR, rect.M1, rect.M1.inv(), rect.D1, M1, M2, pointcloud, correspRPt);
+// 	//DEBUG<<"cloud "<<CloudPointsToPoints(pointcloud)<<endl;
+// 	
+// 	//visualizerShowCamera(rect.R1, Vec3f(M1(0, 3), M1(1,3), M1(2,3)), 255,0,0,0.2,"Left camera");
+// 	//visualizerShowCamera(rect.R2, Vec3f(M2(0, 3), M2(1,3), M2(2,3)), 0,0,255,0.2,"Right camera");
+// 	RunVisualization(pointcloud);
+// 	// Comments on the function:
+// 	//This function takes as parameters : set of Keypoint in the left camera system; set of keypoint in the right camera system;
+// 	//intrinsics parameters from a single camera; their inverse; Distorsion correction for a single camera; the R|T for left camera;
+// 	//the R|T for right camera (as we consider left camera as the origin of the world, we assume that T is 0 for it. To be coherent with the 
+// 	//paper, those one has been called M and rect.M should be called K...
+// 	
+// 	// For each point, acquire depth in T reference
+// 	
+// 	// Minimize the distances between them to find the MLT rotation matrix
+// 	
+// 	return 0;
+}
+
+
+
 Rectifier::Rectifier()
 {
 	s = Size(imgwidth, imgheight);
@@ -1420,6 +1589,7 @@ int Rectifier::calcRectificationMaps(int imgwidth, int imgheight, const char cal
 	fs["D1"] >> D1;
 	fs["M2"] >> M2;
 	fs["D2"] >> D2;
+	
 
 	// Open and retrieve variable from extrinsic file
 	fs.open(extrinsic_filename, CV_STORAGE_READ);
@@ -1429,13 +1599,18 @@ int Rectifier::calcRectificationMaps(int imgwidth, int imgheight, const char cal
 	}
 	fs["R"] >> R;
 	fs["T"] >> T;
-
+	fs["R1"] >> R1;
+	fs["R2"] >> R2;
+	fs["P1"] >> P1;
+	fs["P2"] >> P2;
+	fs["Q"] >> Q;
+	
+	
 	//compute rectification matrices
-	stereoRectify( M1, D1, M2, D2, s, R, T, R1, R2, P1, P2, Q, CV_CALIB_ZERO_DISPARITY, 0, s, &roi1, &roi2 );
+	//stereoRectify( M1, D1, M2, D2, s, R, T, R1, R2, P1, P2, Q, CV_CALIB_ZERO_DISPARITY, 0, s, &roi1, &roi2 );
 
-	//compute rect maps
-	initUndistortRectifyMap(M1, D1, R1, P1, Size(imgwidth, imgheight), CV_16SC2, this->LeftRectMap1, this->LeftRectMap2);
-	initUndistortRectifyMap(M2, D2, R2, P2, Size(imgwidth, imgheight), CV_16SC2, this->RightRectMap1, this->RightRectMap2);
+	//initUndistortRectifyMap(M1, D1, R1, P1, Size(imgwidth, imgheight), CV_16SC2, this->LeftRectMap1, this->LeftRectMap2);
+	//initUndistortRectifyMap(M2, D2, R2, P2, Size(imgwidth, imgheight), CV_16SC2, this->RightRectMap1, this->RightRectMap2);
 
 	f = P1.at<double>(0,0);
 	Tx = T.at<double>(0,0)*0.0254/(6*1.0e-6);
@@ -1443,6 +1618,7 @@ int Rectifier::calcRectificationMaps(int imgwidth, int imgheight, const char cal
 	Tz = T.at<double>(0,2)*0.0254/(6*1.0e-6);
 	cx = P2.at<double>(0,2);
 	cy = P2.at<double>(1,2);
+	
 
 	return 0;
 }

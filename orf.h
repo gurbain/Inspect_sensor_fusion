@@ -57,13 +57,14 @@ class ORF {
 		string lib_version_;
 		
 		// Public functions
-		ORF (bool use_filter=USE_FILTER);
+		ORF ();
 		~ORF ();
 
 		int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=21, int amp_threshold=20, string ether_addr="192.168.1.42");
+		int initOrf(string directory);
 		int closeOrf();
-		int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts);
-		int captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, string filename="ORF_calib.xml");
+		int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0);
+		int captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0, string filename="ORF_calib.xml");
 		int saveRectifiedOrf();
 		int intrinsicCalib(string filename="ORF_calib.xml");
 		
@@ -76,6 +77,10 @@ class ORF {
 		int getAmplitudeThreshold ();
 
 	private:
+		// Loading images
+		string load_directory;
+		bool load_image;
+		
 		// Camera variables
 		CMesaDevice* orfCam_;			
 		ImgEntry* imgEntryArray_;

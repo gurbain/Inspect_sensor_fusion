@@ -16,7 +16,7 @@ using namespace std;
 //////////////////////////
 //////  Constructor //////
 //////////////////////////
-ORF::ORF(bool use_filter) : 
+ORF::ORF() : 
 orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
 imgWidth(640), imgHeight(480), 
 boardWidth (6), boardHeight (11),
@@ -41,6 +41,9 @@ ORF::~ORF()
 //////////////////////////
 int ORF::initOrf(bool auto_exposure, int integration_time, int modulation_freq, int amp_threshold, string ether_addr) 
 {
+	// We are using the camera
+	this->load_image = false;
+	
 	// Open camera handling exceptions
 	int res = 0;
 	if(ether_addr != "") {
@@ -105,20 +108,31 @@ int ORF::initOrf(bool auto_exposure, int integration_time, int modulation_freq, 
 	return 0;
 }
 
+int ORF::initOrf(string dir)
+{
+	this->load_directory = dir;
+	this->load_image = true;
+	
+	return 0;
+}
+
+
+
 //////////////////////////
 ////// Safe Cleanup //////
 //////////////////////////
 void ORF::SafeCleanup() {
-	if (orfCam_) {
-		SR_Close (orfCam_);
+	if (!load_image) {
+		if (orfCam_) {
+			SR_Close (orfCam_);
+		}
+
+		if (buffer_)
+			free(buffer_);
+
+		orfCam_ = NULL;
+		buffer_ = NULL;
 	}
-
-	if (buffer_)
-		free(buffer_);
-
-	orfCam_ = NULL;
-	buffer_ = NULL;
-
 }
 
 //////////////////////////
@@ -126,21 +140,23 @@ void ORF::SafeCleanup() {
 //////////////////////////
 int ORF::closeOrf() 
 {
-	// Close file timestamp
-	if (tsfile.is_open()) {
-		INFO<<"Close "<<timestamps<<"file"<<endl;
-		tsfile.close();
-	}
-	
-	// Close camera
-	if (orfCam_)
-		if (SR_Close (orfCam_))
-			DEBUG<<"Unable to close the camera!"<<endl;
+	if (!load_image) {
+		// Close file timestamp
+		if (tsfile.is_open()) {
+			INFO<<"Close "<<timestamps<<"file"<<endl;
+			tsfile.close();
+		}
+		
+		// Close camera
+		if (orfCam_)
+			if (SR_Close (orfCam_))
+				DEBUG<<"Unable to close the camera!"<<endl;
 
-	// Free resources
-	SafeCleanup();
-	
-	INFO<<"ORF camera has been closed"<<endl;
+		// Free resources
+		SafeCleanup();
+		
+		INFO<<"ORF camera has been closed"<<endl;
+	}
 
 	return 0;
 }
@@ -149,42 +165,64 @@ int ORF::closeOrf()
 //////////////////////////
 //////   Read Data  //////
 //////////////////////////
-int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts)
+
+int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num)
 {
 	// Start the timeStamp
 	ts.start();
 	
-	// Verify the handle integrity
-	SR_SetMode(orfCam_, AM_COR_FIX_PTRN|AM_CONV_GRAY|AM_DENOISE_ANF|AM_CONF_MAP);
-	if (orfCam_ == NULL) {
-		ERROR<<"Read attempted on NULL SwissRanger port!"<<endl;
-		return -1;
+	// If enable, load images instead of capturing
+	if (load_image) {
+		// Set the names
+		char buffer[10];
+		sprintf(buffer, "%i", num);
+		string filenamed = string(this->load_directory) + "/orfDepth" + buffer + ".png";
+		string filenamev = string(this->load_directory) + "/orfVisual" + buffer + ".png";
+		string filenamec = string(this->load_directory) + "/orfConfidency" + buffer + ".png";
+		
+		// Recover images
+		try {
+			depthNewImageFrame = imread(filenamed);
+			visualNewImageFrame = imread(filenamev);
+			confidenceNewImageFrame = imread(filenamec);
+		} catch (int ex) {
+			ERROR<<"Exception when reading ORF file "<<ex<<endl;
+			return -1;
+		}
+	// Else, capture images
+	} else {
+		// Verify the handle integrity
+		SR_SetMode(orfCam_, AM_COR_FIX_PTRN|AM_CONV_GRAY|AM_DENOISE_ANF|AM_CONF_MAP);
+		if (orfCam_ == NULL) {
+			ERROR<<"Read attempted on NULL SwissRanger port!"<<endl;
+			return -1;
+		}
+
+		// Do the acquisition
+		int retVal = SR_Acquire (orfCam_);
+		if (retVal < 0) {
+			ERROR<<"Unable to capture data"<<endl;
+			return -1;
+		}
+
+		// Points array
+		//retVal = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
+
+		// Fill the pictures
+		Mat depth(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 0));
+		Mat visual(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 1));
+		Mat confidence(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 2));
+		
+		// Image resizing
+		Size newSize(imgWidth, imgHeight);
+		resize(depth, depthNewImageFrame, newSize);
+		resize(visual, visualNewImageFrame, newSize);
+		resize(confidence, confidenceNewImageFrame, newSize);
+		
+		// Image processing
+		normalize(visualNewImageFrame, visualNewImageFrame, 0, 255, NORM_MINMAX, CV_8UC1);
+		equalizeHist(visualNewImageFrame, visualNewImageFrame);
 	}
-
-	// Do the acquisition
-	int retVal = SR_Acquire (orfCam_);
-	if (retVal < 0) {
-		ERROR<<"Unable to capture data"<<endl;
-		return -1;
-	}
-
-	// Points array
-	//retVal = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
-
-	// Fill the pictures
-	Mat depth(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 0));
-	Mat visual(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 1));
-	Mat confidence(ORF_ROWS, ORF_COLS, CV_16U, SR_GetImage (orfCam_, 2));
-	
-	// Image resizing
-	Size newSize(imgWidth, imgHeight);
-	resize(depth, depthNewImageFrame, newSize);
-	resize(visual, visualNewImageFrame, newSize);
-	resize(confidence, confidenceNewImageFrame, newSize);
-	
-	// Image processing
-	normalize(visualNewImageFrame, visualNewImageFrame, 0, 255, NORM_MINMAX, CV_8UC1);
-	equalizeHist(visualNewImageFrame, visualNewImageFrame);
 	
 	// Stop the timeStamp
 	ts.stop();
@@ -426,7 +464,7 @@ int ORF::intrinsicCalib(string filename)
 	return 0;
 }
 
-int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, string filename)
+int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num, string filename)
 {
 	// Start the timeStamp
 	ts.start();
@@ -468,7 +506,7 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 	// Capture an image
 	Mat dt, it, ct;
 	TimeStamp t;
-	retVal = captureOrf(dt, it, ct, t);
+	retVal = captureOrf(dt, it, ct, t, num);
 	if (retVal!=0)
 		return -1;
 	
@@ -493,21 +531,12 @@ int ORF::saveRectifiedOrf()
 	this->captureRectifiedOrf(depthNewImageFrame, visualNewImageFrame, confidenceNewImageFrame, ts);
 	
 	//Save jpg images
+	char buffer[10];
+	sprintf(buffer, "%i", imgNum);
 	mkdir(DIRECTORY, 0777);
-	stringstream ssd, ssv, ssc;
-	string named = "orfDepth";
-	string namev = "orfVisual";
-	string namec = "orfConfidency";
-	string type = ".png";
-	ssd<<DIRECTORY<<"/"<<named<<imgNum<<type;
-	ssv<<DIRECTORY<<"/"<<namev<<imgNum<<type;
-	ssc<<DIRECTORY<<"/"<<namec<<imgNum<<type;
-	string filenamed = ssd.str();
-	string filenamev = ssv.str();
-	string filenamec = ssc.str();
-	ssd.str("");
-	ssv.str("");
-	ssc.str("");
+	string filenamed = string(DIRECTORY) + "/orfDepth" + buffer + ".png";
+	string filenamev = string(DIRECTORY) + "/orfVisual" + buffer + ".png";
+	string filenamec = string(DIRECTORY) + "/orfConfidency" + buffer + ".png";
 	
 	try {
 		imwrite(filenamed, depthNewImageFrame);

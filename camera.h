@@ -94,7 +94,10 @@ class Cameras
 	int numberOfBytesToCopy;
 
 	int prevImgNum;
-
+	
+	// Loading images
+	string load_directory;
+	bool load_image;
 
 	// Private Functions
 	void parseParameterFile();
@@ -142,11 +145,12 @@ public:
 	void setCam1Serial(const char* serialNum);
 
 	unsigned int initTwoCameras();
+	unsigned int initTwoCameras(string dir);
 	unsigned int closeTwoCameras();
 	unsigned int startTwoCameras();
 	unsigned int stopTwoCameras();
-	unsigned int captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag);
-
+	unsigned int captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag, int num=0);
+	int calib();
 };
 
 
@@ -162,6 +166,10 @@ class Rectifier
 	cv::Size s;
 	int imgwidth, imgheight;
 
+	cv::Rect roi1, roi2;
+
+
+public:
 	cv::Mat Q;
 	cv::Mat R, T, R1, P1, R2, P2;
 	cv::Mat M1, D1, M2, D2;
@@ -169,10 +177,7 @@ class Rectifier
 	double f;
 	double cx;
 	double cy;
-	cv::Rect roi1, roi2;
-
-
-public:
+	
 	// Public variables
 	bool rectifierOn;
 

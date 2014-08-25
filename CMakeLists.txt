@@ -5,8 +5,19 @@ if(COMMAND cmake_policy)
 endif(COMMAND cmake_policy)
 set(CMAKE_BUILD_TYPE Debug)
 
+## Find packages
+find_package(OpenCV REQUIRED)
+find_package(OpenMP REQUIRED)
+find_package(PCL REQUIRED)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
+
+## Add structure from motion
+ADD_SUBDIRECTORY(SfM)
+INCLUDE_DIRECTORIES(SfM)
+LINK_LIBRARIES(SfMLib)
+
 ## Add src and target
-ADD_EXECUTABLE(Main utils.cpp camera.cpp orf.cpp halo.cpp main.cpp)
+ADD_EXECUTABLE(Main utils.cpp camera.cpp orf.cpp halo.cpp main.cpp SimpleTriangulator.cpp SfM/Visualization.cpp)
 
 ## Add MESA SR libaries
 FIND_PATH( MESASR_INCLUDE_PATH libMesaSR.h
@@ -47,5 +58,19 @@ TARGET_LINK_LIBRARIES(Main ${UEYEUSB_LIBRARY})
 INCLUDE_DIRECTORIES(${UEYEUSB_INCLUDE_DIR})
 
 ## Add OpenCV
-find_package(OpenCV REQUIRED)
 TARGET_LINK_LIBRARIES(Main ${OpenCV_LIBS})
+
+## Add PCL
+if(EIGEN_INCLUDE_DIRS) # if compiling with PCL, it will bring Eigen with it
+	message(STATUS "will use Eigen")
+	include_directories(${EIGEN_INCLUDE_DIRS})
+	add_definitions( -DUSE_EIGEN )
+endif()
+LINK_LIBRARIES(Main ${PCL_LIBRARY_DIRS})
+target_link_libraries(Main ${PCL_LIBRARIES})
+INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS})
+ADD_DEFINITIONS(${PCL_DEFINITIONS})
+
+## Add Boost library
+TARGET_LINK_LIBRARIES(Main ${BOOST_LIBRARIES})
+

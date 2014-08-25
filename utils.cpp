@@ -19,11 +19,31 @@ TimeStamp::TimeStamp()
 	timeInit = timeValInit;
 	meanTime = 0;
 	procTime = 0;
-	initTime = timeInit.tv_sec*1000 + timeInit.tv_usec/1000;
+	initTime = 0;//timeInit.tv_sec*1000 + timeInit.tv_usec/1000;
 }
 
 TimeStamp::~TimeStamp() 
 {}
+
+int TimeStamp::load(string line_)
+{
+	// Parse line
+	string proctime, meantime;
+	istringstream iss(line_);
+	vector<string> tokens;
+	copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(tokens));
+	
+	// Set TimeStamp
+	int proc = atoi(tokens.at(3).c_str());
+	int mean = atoi(tokens.at(5).c_str());
+	this->setTime(mean, proc);
+// 	cout<<"PROC "<<this->procTime<<endl;
+// 	cout<<"MEAN "<<this->meanTime<<endl;
+// 	cout<<"START "<<this->startTime<<endl;
+// 	cout<<"STOP "<<this->stopTime<<endl;
+	
+	return 0;
+}
 
 void TimeStamp::start()
 {
@@ -86,13 +106,21 @@ int TimeStamp::getStopTime()
 	}
 }
 
-bool TimeStamp::isSynchro(TimeStamp t)
+int TimeStamp::setTime(int meanTime_, int procTime_)
+{
+	this->procTime = procTime_;
+	this->meanTime = meanTime_;
+	this->startTime = meanTime_ - int(procTime_/2);
+	this->stopTime = meanTime_ + int(procTime_/2);	
+}
+
+bool TimeStamp::isSynchro(TimeStamp t_)
 {
 	if (isRunning==true) {
 		return false;
 	} else {
-		int proc1 = t.getProcTime();
-		int mean1 = t.getMeanTime();
+		int proc1 = t_.getProcTime();
+		int mean1 = t_.getMeanTime();
 		if (proc1==-1 || mean1==-1) {
 			return false;
 		} else {

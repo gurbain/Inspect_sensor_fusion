@@ -28,12 +28,17 @@
 #include <limits>
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <stdlib.h>
+#include <sstream>
+#include <algorithm>
+#include <iterator>
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/version.h>
+#include <sys/stat.h>
 
 // Defines
 #define DELTATMIN	150
@@ -64,11 +69,13 @@ class TimeStamp {
 		
 		void start();
 		void stop();
+		int load(string line_);
 		int getProcTime();
 		int getMeanTime();
 		int getStartTime();
 		int getStopTime();
-		bool isSynchro(TimeStamp t);
+		int setTime(int meanTime_, int procTime_);
+		bool isSynchro(TimeStamp t_);
 };
 
 
