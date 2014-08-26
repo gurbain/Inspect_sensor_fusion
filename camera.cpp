@@ -19,8 +19,11 @@ h_cam1(0), h_cam2(1),
 pixelClockFreq(10), frameRate(5),exposureTime(20), flashDelay(0), flashDuration(15000),
 imgWidth(640), imgHeight(480), imgBitsPixel(8), imgBufferCount(RING_BUFFER_SIZE),
 act_img_buf1(NULL), act_img_buf2(NULL), last_img_buf1(NULL), last_img_buf2(NULL),
+boardWidth (6), boardHeight (11), numberBoards (20), squareSize (250), acqStep (2),
 hwGain(100)
 {
+	imageSize = Size(imgWidth, imgHeight);
+	boardSize = Size(boardWidth, boardHeight);
 	sprintf(CAMERA_1_SERIAL, "4002795734"); // this is the serial number of the left camera, a standard initialization
 }
 
@@ -224,6 +227,184 @@ unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& righ
 			this->captureTwoImagesNotSynch(leftNewImageFrame, rightNewImageFrame, img_num1, img_num2, ts);
 		}
 	}
+	
+	return 0;
+
+}
+
+
+int Cameras::intrinsicCalib(string filename)
+{
+	// Capture images
+	Mat iL, iR;
+	vector<vector<Point2f> > imagePointsL(numberBoards), imagePointsR(numberBoards);
+	vector<vector<Point3f> > objectPoints(numberBoards);
+	Mat distorsionCoeffsL, distorsionCoeffsR;
+	Mat intrinsicMatrixL = Mat::eye(3, 3, CV_64F);
+	Mat intrinsicMatrixR = Mat::eye(3, 3, CV_64F);
+	Mat R, T, E, F;
+
+	// Usefull variables
+	int retVal;
+	int num = 0;
+	int *dummy1, *dummy2, dummy3;
+	int successes = 0;
+	int step, frame = 0;
+	bool foundR = false, foundL = false;
+	
+	// Capture images
+	TimeStamp t;
+	retVal = captureTwoImages(iL, iR, dummy1, dummy2, t, dummy3, 0);
+	
+	// Capture numberBoards images
+	while(successes < numberBoards) {
+		if((frame++ % acqStep)==0) {
+			foundL = findChessboardCorners(iL, boardSize, imagePointsL[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
+			if (foundL) {
+				foundR = findChessboardCorners(iR, boardSize, imagePointsR[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
+			}
+			//INFO<<"Checkerboard found state : ["<<foundL<<", "<<foundR<<", "<<foundT<<" ]"<<endl; 
+
+			// If sth found
+			if(foundL && foundR){
+				// Draw it if applicable
+				drawChessboardCorners(iL, boardSize, Mat(imagePointsL[successes]), foundL);
+				drawChessboardCorners(iR, boardSize, Mat(imagePointsR[successes]), foundR);
+				
+				// Add point
+				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
+				successes++;
+				INFO<<"Checkerboard found : "<<successes<<endl; 
+			}
+		}
+		// Show the result
+		imshow("Calib left", iL);
+		imshow("Calib right", iR);
+
+		// Handle pause/unpause and ESC
+		int c = cvWaitKey(15);
+		if(c == 'p') {
+			DEBUG<<"Acquisition is now paused"<<endl;
+			c = 0;
+			while(c != 'p' && c != 27){
+				c = cvWaitKey(250);
+			}
+			DEBUG<<"Acquisition is now unpaused"<<endl;
+		}
+		if(c == 27) {
+			DEBUG<<"Acquisition has been stopped by user"<<endl;
+			return 0;
+		}
+		// Get next image
+		num++;
+		retVal = captureTwoImages(iL, iR, dummy1, dummy2, t, dummy3, num);
+	}
+
+	// Compute intrinsic and extrinsic calibration matrices
+	double rms = stereoCalibrate(objectPoints, imagePointsL, imagePointsR, intrinsicMatrixL, distorsionCoeffsL, intrinsicMatrixR, distorsionCoeffsR, imageSize, R, T, E, F, TermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS, 100, 1e-5), CV_CALIB_FIX_ASPECT_RATIO + CV_CALIB_ZERO_TANGENT_DIST + CV_CALIB_SAME_FOCAL_LENGTH + CV_CALIB_FIX_K4 + CV_CALIB_FIX_K5);
+	INFO << "Optics Mount calibration done! RMS reprojection error: " << rms << endl;
+	
+	// Compute reprojection matrices
+	Rect roi1, roi2;
+	Mat RL, PL, RR, PR;
+	stereoRectify(intrinsicMatrixL, distorsionCoeffsL, intrinsicMatrixR, distorsionCoeffsR, imageSize, R, T, rotMatrixL, rotMatrixR, projMatrixL, projMatrixR, Q, CV_CALIB_ZERO_DISPARITY, 0, imageSize, &roi1, &roi2);
+	
+	// Save the calibration parameters
+	FileStorage storage(filename, FileStorage::WRITE);
+	storage<<"intrinsicMatrixL"<<intrinsicMatrixL;
+	storage<<"distorsionCoeffsL"<<distorsionCoeffsL;
+	storage<<"projMatrixL"<<projMatrixL;
+	storage<<"rotMatrixL"<<rotMatrixL;
+	storage<<"intrinsicMatrixR"<<intrinsicMatrixR;
+	storage<<"distorsionCoeffsR"<<distorsionCoeffsR;
+	storage<<"projMatrixR"<<projMatrixR;
+	storage<<"rotMatrixR"<<rotMatrixR;
+	storage<<"R"<<R;
+	storage<<"T"<<T;
+	storage<<"E"<<E;
+	storage<<"F"<<F;
+	storage.release();
+	
+	return 0;
+}
+
+
+unsigned int Cameras::captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, TimeStamp& ts, int num, string filename)
+{
+	// Usefull variables
+	int *img_num1, *img_num2;
+	int flags = 0;
+	int retVal;
+	
+	// Start the timeStamp
+	ts.start();
+	
+	// Check if calib file already exist
+	if (mapxL.empty() || mapyL.empty() || mapxR.empty() || mapyR.empty()) {
+		// Load calibration matrices
+		FileStorage storage;
+		retVal = storage.open(filename, FileStorage::READ);
+		if (retVal==1) {
+			INFO<<"Optics Mount Calibration file found! No need to perform calibration!"<<endl;
+		} else {
+			INFO<<"Calibration file not found! Calibration needed!"<<endl;
+			intrinsicCalib(filename);
+			retVal = storage.open(filename, FileStorage::READ);
+			if (retVal!=1) {
+				ERROR<<"File cannot be open or read! Verify user rights"<<endl;
+				return -1;
+			}
+		}
+		storage["intrinsicMatrixL"]>>intrinsicMatrixL;
+		storage["distorsionCoeffsL"]>>distorsionCoeffsL;
+		storage["projMatrixL"]>>projMatrixL;
+		storage["rotMatrixL"]>>rotMatrixL;
+		storage["intrinsicMatrixR"]>>intrinsicMatrixR;
+		storage["distorsionCoeffsR"]>>distorsionCoeffsR;
+		storage["projMatrixR"]>>projMatrixR;
+		storage["rotMatrixR"]>>rotMatrixR;
+		storage["R"]>>R;
+		storage["T"]>>T;
+		storage["E"]>>E;
+		storage["F"]>>F;
+		storage.release();
+		f = projMatrixL.at<double>(0,0);
+		Tx = T.at<double>(0,0);
+		Ty = T.at<double>(0,1);
+		Tz = T.at<double>(0,2);
+		cxL = projMatrixL.at<double>(0,2);
+		cyL = projMatrixL.at<double>(1,2);
+		cxR = projMatrixR.at<double>(0,2);
+		cyR = projMatrixR.at<double>(1,2);
+		
+		// Build the undistort map that we will use for all subsequent frames
+		Size imageSize(imgWidth, imgHeight);
+		Mat RectL, newCameraMatrixL, RectR, newCameraMatrixR;;
+		mapxL.create(imageSize, CV_32FC1);
+		mapyL.create(imageSize, CV_32FC1);
+		mapxR.create(imageSize, CV_32FC1);
+		mapyR.create(imageSize, CV_32FC1);
+// 		initUndistortRectifyMap(intrinsicMatrixL, distorsionCoeffsL, RectL, newCameraMatrixL, imageSize, CV_32FC1, mapxL, mapyL);
+// 		initUndistortRectifyMap(intrinsicMatrixR, distorsionCoeffsR, RectR, newCameraMatrixR, imageSize, CV_32FC1, mapxR, mapyR);
+		initUndistortRectifyMap(intrinsicMatrixL, distorsionCoeffsL, rotMatrixL, projMatrixL, imageSize, CV_16SC2, mapxL, mapyL);
+		initUndistortRectifyMap(intrinsicMatrixR, distorsionCoeffsR, rotMatrixR, projMatrixR, imageSize, CV_16SC2, mapxR, mapyR);
+	}
+	
+	// Capture an image
+	Mat iL, iR;
+	TimeStamp t;
+	retVal = captureTwoImages(iL, iR, img_num1, img_num2, ts, flags, num);
+	if (retVal!=0)
+		return -1;
+	
+	// Remap the image
+// 	leftNewImageFrame = iL;
+// 	rightNewImageFrame = iR;
+	remap(iL, leftNewImageFrame, mapxL, mapyL, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
+	remap(iR, rightNewImageFrame, mapxR, mapyR, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
+	
+	// Stop the timeStamp
+	ts.stop();
 	
 	return 0;
 
@@ -1428,265 +1609,4 @@ void Cameras::parseParameterFile() {
 		DEBUG << "Unable to open: " << CAMERA_FILE << endl;
 	}
 
-}
-
-int Cameras::calib()
-{
-// 	// Capture images
-// 	Mat iL, iR, dT, vT, cT;
-// 	vector<vector<Point2f> > imagePointsL(numberBoards), imagePointsR(numberBoards);
-// 	vector<vector<Point3f> > objectPoints(numberBoards);
-// 	
-// 	// Usefull variables
-// 	int retVal;
-// 	int successes = 0;
-// 	int step, frame = 0;
-// 	bool foundR = false, foundL = false;
-// 	
-// 	// Capture images
-// 	retVal = loadTwoImages(iL, iR,);
-// 	// Capture numberBoards images
-// 	while(successes < numberBoards) {
-// 		if((frame++ % acqStep)==0){
-// 			// Find chessboard corners:
-// 			foundT = findChessboardCorners(vT, boardSize, imagePointsT[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
-// 			if (foundT) {
-// 				foundL = findChessboardCorners(iL, boardSize, imagePointsL[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
-// 				if (foundL) {
-// 					foundR = findChessboardCorners(iR, boardSize, imagePointsR[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
-// 				}
-// 			}
-// 			//INFO<<"Checkerboard found state : ["<<foundL<<", "<<foundR<<", "<<foundT<<" ]"<<endl; 
-// 
-// 			// If sth found
-// 			if(foundL && foundR && foundT){	
-// 				// Draw it if applicable
-// 				essai = &iL;
-// 				drawChessboardCorners(iL, boardSize, Mat(imagePointsL[successes]), foundL);
-// 				drawChessboardCorners(iR, boardSize, Mat(imagePointsR[successes]), foundR);
-// 				drawChessboardCorners(vT, boardSize, Mat(imagePointsT[successes]), foundT);
-// 				
-// 				// Add point
-// 				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
-// 				successes++;
-// 				INFO<<"Checkerboard found : "<<successes<<" numImg: "<<this->loadNum<<endl; 
-// 			}
-// 		}
-// 		
-// 		// Show the result
-// 		imshow("Calib left", iL);
-// 		imshow("Calib right", iR);
-// 		imshow("Calib orf", vT);
-// 
-// 		// Handle pause/unpause and ESC
-// 		int c = cvWaitKey(15);
-// 		if(c == 'p') {
-// 			DEBUG<<"Acquisition is now paused"<<endl;
-// 			c = 0;
-// 			while(c != 'p' && c != 27){
-// 				c = cvWaitKey(250);
-// 			}
-// 			DEBUG<<"Acquisition is now unpaused"<<endl;
-// 		}
-// 		if(c == 27) {
-// 			DEBUG<<"Acquisition has been stopped by user"<<endl;
-// 			return 0;
-// 		}
-// 		// Get next image
-// 		retVal = loadAllImages(iL, iR, dT, vT, cT);
-// 	}
-// 	circle(*essai, imagePointsL[0][0], 5, Scalar(255,0,0));
-// 	circle(*essai, imagePointsL[0][1], 5, Scalar(0,255,0));
-// 	circle(*essai, imagePointsL[0][2], 5, Scalar(0,0,255));
-// 	circle(*essai, imagePointsL[0][3], 5, Scalar(255,255,0));
-// 	imshow("Reperage", *essai);
-// 	cvWaitKey(0);
-// 	
-// 	// Save data
-// 	FileStorage storage("test.xml", FileStorage::WRITE);
-// 	storage<<"imagePointsL"<<imagePointsL;
-// 	storage<<"imagePointsR"<<imagePointsR;
-// 	storage<<"imagePointsT"<<imagePointsT;
-// 	storage.release();	
-// 
-// 	// STEP 2 :: For each point, compute depth from stereo cameras in L reference
-// 	
-// 	// Triangulate stereo points
-// 	cv::Mat distcoeff;
-// 	vector<KeyPoint> correspRPt;
-// 	vector<Point3d> pointcloud;
-// 	Mat cloudp;
-// // 	vector<KeyPoint> ptSetL, ptSetR;
-// // 	PointsToKeyPoints(imagePointsL[0], ptSetL);
-// // 	PointsToKeyPoints(imagePointsR[0], ptSetR);
-// // 	Matx34d M1(rect.R1.at<double>(0,0), rect.R1.at<double>(0,1), rect.R1.at<double>(0, 2), 0,
-// // 		   rect.R1.at<double>(1,0), rect.R1.at<double>(1,1), rect.R1.at<double>(1, 2), 0,
-// // 		   rect.R1.at<double>(2,0), rect.R1.at<double>(2,1), rect.R1.at<double>(2, 2), 0);
-// // 	Matx34d M2(rect.R2.at<double>(0,0), rect.R2.at<double>(0,1), rect.R2.at<double>(0, 2), rect.T.at<double>(0, 0),
-// // 		   rect.R2.at<double>(1,0), rect.R2.at<double>(1,1), rect.R2.at<double>(1, 2), rect.T.at<double>(0, 1),
-// // 		   rect.R2.at<double>(2,0), rect.R2.at<double>(2,1), rect.R2.at<double>(2, 2), rect.T.at<double>(0, 2));
-// // 	
-// 	cout<<"P1 "<<rect.P1<<endl;
-// 	cout<<"P2 "<<rect.P2<<endl;
-// 	//triangulatePoints(rect.P1, rect.P2, imagePointsL[0], imagePointsR[0], cloudp);
-// 	SimpleTriangulator triangle(rect);
-// 	Point3d newPoint;
-// 	DEBUG<<"f "<<rect.f<<" Tx: "<<rect.Tx<<" cx: "<<rect.cx<<" cy: "<<rect.cy<<endl;
-// 	for (int i=0; i<66; i++) {
-// 		newPoint = triangle.triangulate((double)imagePointsL[0][i].y, (double)imagePointsR[0][i].y, (double)imagePointsL[0][i].x);
-// // 		newPoint.x = cloudp.at<float>(4*i);
-// // 		newPoint.y = cloudp.at<float>(4*i+1);
-// // 		newPoint.z = cloudp.at<float>(4*i+2);
-// 		DEBUG<<imagePointsL[0][i].x<<" et "<<imagePointsR[0][i].x<<endl;
-// 		DEBUG<<"Point "<<i+1<<": X="<<newPoint.x<<" ; Y="<<newPoint.y<<" ; Z="<<newPoint.z<<endl;
-// 		pointcloud.push_back(newPoint);
-// 	}
-// 
-// 	
-// 	//TriangulatePoints(ptSetL, ptSetR, rect.M1, rect.M1.inv(), rect.D1, M1, M2, pointcloud, correspRPt);
-// 	//DEBUG<<"cloud "<<CloudPointsToPoints(pointcloud)<<endl;
-// 	
-// 	//visualizerShowCamera(rect.R1, Vec3f(M1(0, 3), M1(1,3), M1(2,3)), 255,0,0,0.2,"Left camera");
-// 	//visualizerShowCamera(rect.R2, Vec3f(M2(0, 3), M2(1,3), M2(2,3)), 0,0,255,0.2,"Right camera");
-// 	RunVisualization(pointcloud);
-// 	// Comments on the function:
-// 	//This function takes as parameters : set of Keypoint in the left camera system; set of keypoint in the right camera system;
-// 	//intrinsics parameters from a single camera; their inverse; Distorsion correction for a single camera; the R|T for left camera;
-// 	//the R|T for right camera (as we consider left camera as the origin of the world, we assume that T is 0 for it. To be coherent with the 
-// 	//paper, those one has been called M and rect.M should be called K...
-// 	
-// 	// For each point, acquire depth in T reference
-// 	
-// 	// Minimize the distances between them to find the MLT rotation matrix
-// 	
-// 	return 0;
-}
-
-
-
-Rectifier::Rectifier()
-{
-	s = Size(imgwidth, imgheight);
-	rectifierOn = true;
-}
-
-int Rectifier::calcRectificationMaps(int imgwidth, int imgheight, const char calibParamDir[200])
-{
-	// Read filenames
-	sprintf(intrinsic_filename, "%s/intrinsics.yml", calibParamDir);
-	sprintf(extrinsic_filename, "%s/extrinsics.yml", calibParamDir);
-	cv::FileStorage fs(intrinsic_filename, CV_STORAGE_READ);
-	
-	// Open and retrieve variable from intrinsic file
-	if(!fs.isOpened()) {
-		ERROR<<"Failed to open file "<<intrinsic_filename<<endl;
-		INFO<<"Check camera calibration parameter directory environment variable and correct calibration set number" << endl;
-		return -1;
-	} else {
-		INFO<<"Intrinsic file opened: " << intrinsic_filename<< endl;
-	}
-	fs["M1"] >> M1;
-	fs["D1"] >> D1;
-	fs["M2"] >> M2;
-	fs["D2"] >> D2;
-	
-
-	// Open and retrieve variable from extrinsic file
-	fs.open(extrinsic_filename, CV_STORAGE_READ);
-	if(!fs.isOpened()) {
-		ERROR<<"Failed to open file "<<extrinsic_filename<<endl;
-		return -1;
-	}
-	fs["R"] >> R;
-	fs["T"] >> T;
-	fs["R1"] >> R1;
-	fs["R2"] >> R2;
-	fs["P1"] >> P1;
-	fs["P2"] >> P2;
-	fs["Q"] >> Q;
-	
-	
-	//compute rectification matrices
-	//stereoRectify( M1, D1, M2, D2, s, R, T, R1, R2, P1, P2, Q, CV_CALIB_ZERO_DISPARITY, 0, s, &roi1, &roi2 );
-
-	//initUndistortRectifyMap(M1, D1, R1, P1, Size(imgwidth, imgheight), CV_16SC2, this->LeftRectMap1, this->LeftRectMap2);
-	//initUndistortRectifyMap(M2, D2, R2, P2, Size(imgwidth, imgheight), CV_16SC2, this->RightRectMap1, this->RightRectMap2);
-
-	f = P1.at<double>(0,0);
-	Tx = T.at<double>(0,0)*0.0254/(6*1.0e-6);
-	Ty = T.at<double>(0,1)*0.0254/(6*1.0e-6);
-	Tz = T.at<double>(0,2)*0.0254/(6*1.0e-6);
-	cx = P2.at<double>(0,2);
-	cy = P2.at<double>(1,2);
-	
-
-	return 0;
-}
-
-
-int Rectifier::rectifyImages(cv::Mat& leftImgFrame, cv::Mat& rightImgFrame)
-{
-	// Create dummies
-	Mat leftDummyImage, rightDummyImage;
-
-	// Remap
-	remap(leftImgFrame, leftDummyImage, this->LeftRectMap1, this->LeftRectMap2, CV_INTER_LINEAR);
-	remap(rightImgFrame, rightDummyImage, this->RightRectMap1, this->RightRectMap2, CV_INTER_LINEAR);
-	
-	// Copy dummies into new images
-	leftImgFrame = leftDummyImage;
-	rightImgFrame = rightDummyImage;
-
-	return 0;
-}
-
-
-void Rectifier::getCameraParameters(cv::Mat& Qin, cv::Mat& Rin, cv::Mat& Tin, cv::Mat& R1in, cv::Mat& P1in,
-		cv::Mat& R2in, cv::Mat& P2in, cv::Mat& M1in, cv::Mat& D1in, cv::Mat& M2in, cv::Mat& D2in,
-		double& Txin, double& Tyin, double& Tzin, double& fin, double& cxin, double& cyin)
-{
-	Qin = this->Q;
-	Rin = this->R;
-	Tin = this->T;
-	R1in = this->R1;
-	P1in = this->P1;
-	R2in = this->R2;
-	P2in = this->P2;
-	M1in = this->M1;
-	D1in = this->D1;
-	M2in = this->M2;
-	D2in = this->D2;
-	Txin = this->Tx;
-	Tyin = this->Ty;
-	Tzin = this->Tz;
-	fin = this->f;
-	cxin = this->cx;
-	cyin = this->cy;
-}
-
-void Rectifier::getCameraParameters(cv::Mat& Qin)
-{
-	Qin = this->Q;
-}
-
-
-void Rectifier::getCameraParameters(cv::Mat& Rin, cv::Mat& Tin, cv::Mat& M1in, cv::Mat& D1in, cv::Mat& M2in, cv::Mat& D2in) {
-	Rin = this->R;
-	Tin = this->T;
-	M1in = this->M1;
-	D1in = this->D1;
-	M2in = this->M2;
-	D2in = this->D2;
-}
-
-void Rectifier::getCameraParameters(double & cx_left,double &  cy_left,double &  cx_right,double &  cy_right,double &  f_left,double &  f_right,double &  Tx,double &  Ty,double &  Tz) {
-	cx_left = this->M1.at<double>(0,2);
-	cy_left = this->M1.at<double>(1,2);
-	cx_right = this->M2.at<double>(0,2);
-	cy_right = this->M2.at<double>(1,2);
-	f_left = this->M1.at<double>(0,0);
-	f_right = this->M2.at<double>(0,0);
-	Tx = this->Tx;
-	Ty = this->Ty;
-	Tz = this->Tz;
 }

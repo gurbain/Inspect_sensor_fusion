@@ -112,7 +112,6 @@ class ORF {
 		int tslast;
 		
 		// Private functions
-		vector<Point3f> Create3DChessboardCorners(Size boardSize, float squareSize);
 		void SafeCleanup();
 		string getDeviceString ();
 		string getLibraryVersion ();

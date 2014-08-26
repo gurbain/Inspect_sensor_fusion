@@ -21,7 +21,7 @@ orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
 imgWidth(640), imgHeight(480), 
 boardWidth (6), boardHeight (11),
 numberBoards (10), squareSize (250),
-acqStep (20), imgNum(0), tslast(0),
+acqStep (2), imgNum(0), tslast(0),
 timestamps("timestamp.txt")
 {
 	imageSize = Size(imgWidth, imgHeight);
@@ -364,19 +364,6 @@ string ORF::getLibraryVersion ()
 	return str;
 }
 
-vector<Point3f> ORF::Create3DChessboardCorners(Size boardSize, float squareSize)
-{
-	vector<Point3f> corners;
- 
-	for( int i = 0; i < boardSize.height; i++ ) {
-		for( int j = 0; j < boardSize.width; j++ ) {
-			corners.push_back(cv::Point3f(float(j*squareSize),
-			float(i*squareSize), 0));
-		}
-	}
-	return corners;
-}
-
 
 int ORF::intrinsicCalib(string filename)
 {
@@ -391,6 +378,7 @@ int ORF::intrinsicCalib(string filename)
 	
 	// Usefull variables
 	int successes = 0;
+	int num = 0;
 	int step, frame = 0;
 	bool found;
 	
@@ -399,8 +387,6 @@ int ORF::intrinsicCalib(string filename)
 	int retVal = captureOrf(dt, it, ct, t);
 	if (retVal!=0)
 		return -1;
-	
-
 	// Capture numberBoards images
 	while(successes < numberBoards) {
 		if((frame++ % acqStep)==0){
@@ -412,7 +398,7 @@ int ORF::intrinsicCalib(string filename)
 
 			// Add point if we find them
 			if(found){
-				objectPoints[successes] = Create3DChessboardCorners(boardSize, squareSize);
+				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
 				successes++;
 				INFO<<"Checkerboard found : "<<successes<<endl; 
 			}
@@ -442,14 +428,15 @@ int ORF::intrinsicCalib(string filename)
 		}
 		
 		// Get next image
-		int retVal = captureOrf(dt, it, ct, t);
+		num++;
+		int retVal = captureOrf(dt, it, ct, t, num);
 		if (retVal!=0)
 			return -1;
 	}
 	
 	// Compute calibration matrixes
 	double rms = calibrateCamera(objectPoints, imagePoints, imageSize, intrinsicMatrix, distortionCoeffs, rotationVectors, translationVectors, 0|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
-	INFO<<"RMS distance between measured and reprojected = "<<rms<<endl;
+	INFO<<"ORF Calibration done! RMS reprojection error: "<<rms<<endl;
 
 	
 	// Save the intrinsics and distortions
@@ -479,9 +466,7 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 		FileStorage storage;
 		retVal = storage.open(filename, FileStorage::READ);
 		if (retVal==1) {
-			INFO<<"Calibration file found! No need to perform calibration!"<<endl;
-			storage["Intrinsicparameters"]>>intrinsicMatrix;
-			storage["Distortioncoefficients"]>>distortionCoeffs;
+			INFO<<"ORF Calibration file found! No need to perform calibration!"<<endl;
 		} else {
 			INFO<<"Calibration file not found! Calibration needed!"<<endl;
 			intrinsicCalib(filename);
@@ -490,9 +475,9 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 				ERROR<<"File cannot be open or read! Verify user rights"<<endl;
 				return -1;
 			}
-			storage["Intrinsicparameters"]>>intrinsicMatrix;
-			storage["Distortioncoefficients"]>>distortionCoeffs;
 		}
+		storage["Intrinsicparameters"]>>intrinsicMatrix;
+		storage["Distortioncoefficients"]>>distortionCoeffs;
 		storage.release();
 		
 		// Build the undistort map that we will use for all subsequent frames

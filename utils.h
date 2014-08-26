@@ -49,6 +49,7 @@ using namespace std;
 static timeval timeValInit;
 
 void init();
+vector<cv::Point3f> create3DChessboardCorners(cv::Size boardSize, float squareSize);
 
 class TimeStamp {
 	

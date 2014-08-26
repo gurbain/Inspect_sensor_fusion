@@ -42,7 +42,7 @@
 #include "orf.h"
 #include "camera.h"
 #include "SimpleTriangulator.h"
-//#include "SfM/Triangulation.h"
+#include "SfM/Triangulation.h"
 #include "SfM/Visualization.h"
 #include "SfM/Common.h"
 
@@ -66,6 +66,7 @@ class Halo{
 		int init(string directory);
 		int close();
 		int captureAllImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag=ASYNCHRONOUS);
+		int captureAllRectifiedImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag=ASYNCHRONOUS);
 		int capture3Dcloud();
 		int calib();
 		
@@ -78,7 +79,6 @@ class Halo{
 		// Main objects
 		ORF orf;
 		Cameras stereo;
-		Rectifier rect;
 		
 		// Capture parameters
 		int imgNum;
@@ -98,11 +98,6 @@ class Halo{
 		ifstream omFile, orfFile;
 		int load_num;
 		string load_directory;
-		
-		// Private functions
-		vector<Point3f> create3DChessboardCorners(Size boardSize, float squareSize);
-		
-	
 };
 
 #endif
