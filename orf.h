@@ -52,15 +52,19 @@ const int ORF_IMAGES = 3;
 class ORF {
 
 	public:
-		// Public variables
+		// Common variables
 		string device_id_;
 		string lib_version_;
+		
+		// Calibration matrices
+		Mat intrinsicMatrix, distorsionCoeffs;
+		double f, cx, cy;
 		
 		// Public functions
 		ORF ();
 		~ORF ();
 
-		int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=21, int amp_threshold=20, string ether_addr="192.168.1.42");
+		int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=15, int amp_threshold=20, string ether_addr="192.168.1.42");
 		int initOrf(string directory);
 		int closeOrf();
 		int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0);

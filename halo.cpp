@@ -18,7 +18,7 @@ Halo::Halo() :
 isCamOpen(false), isOrfOpen(false),
 imgWidth(640), imgHeight(480), 
 boardWidth (6), boardHeight (11),
-numberBoards (5), squareSize (250),
+numberBoards (1), squareSize (250),
 acqStep (3), imgNum(0)
 {
 	boardSize = Size(boardWidth, boardHeight);
@@ -297,12 +297,14 @@ int Halo::calib()
 	int step, frame = 0;
 	bool foundT = false, foundR = false, foundL = false;
 	
-	// Capture images
-	retVal = captureAllRectifiedImages(iL, iR, dT, vT, cT);
 	//INFO<<"images: "<<vT.size()<<","<<iL.size()<<","<<iR.size()<< " et boardSize: "<<boardSize<<" et imagePoints: "<<imagePointsT[0]<<";"<<imagePointsL[0]<<";"	<<imagePointsR[0]<<endl;
-// 	Mat *essai;
+//  	Mat *essai;
 	// Capture numberBoards images
 	while(successes < numberBoards) {
+		
+		// Capture images
+		retVal = captureAllRectifiedImages(iL, iR, dT, vT, cT);
+	
 		if((frame++ % acqStep)==0){
 			// Find chessboard corners:
 			foundT = findChessboardCorners(vT, boardSize, imagePointsT[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
@@ -317,10 +319,11 @@ int Halo::calib()
 			// If sth found
 			if(foundL && foundR && foundT){	
 				// Draw it if applicable
-// 				essai = &iL;
+// 				essai = &dT;
 				drawChessboardCorners(iL, boardSize, Mat(imagePointsL[successes]), foundL);
 				drawChessboardCorners(iR, boardSize, Mat(imagePointsR[successes]), foundR);
 				drawChessboardCorners(vT, boardSize, Mat(imagePointsT[successes]), foundT);
+// 				drawChessboardCorners(dT, boardSize, Mat(imagePointsT[successes]), foundT);
 				
 				// Add point
 				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
@@ -333,6 +336,8 @@ int Halo::calib()
 		imshow("Calib left", iL);
 		imshow("Calib right", iR);
 		imshow("Calib orf", vT);
+		imshow("Calib orf depth", dT);
+		imshow("Calib orf conf", cT);
 
 		// Handle pause/unpause and ESC
 		int c = cvWaitKey(15);
@@ -348,8 +353,6 @@ int Halo::calib()
 			DEBUG<<"Acquisition has been stopped by user"<<endl;
 			return 0;
 		}
-		// Get next image
-		retVal = captureAllRectifiedImages(iL, iR, dT, vT, cT);
 	}
 // 	circle(*essai, imagePointsL[0][0], 5, Scalar(255,0,0));
 // 	circle(*essai, imagePointsL[0][1], 5, Scalar(0,255,0));
@@ -369,7 +372,7 @@ int Halo::calib()
 	
 	// Triangulate stereo points
 
-	vector<Point3d> pointcloud, pointcloud2;
+	vector<Point3d> pointcloudOM, pointcloudORF;
 // 	vector<CloudPoint> pointcloud;
 // 	Mat cloudp;
 // 	cv::Mat distcoeff;
@@ -391,29 +394,52 @@ int Halo::calib()
 // 	cout<<"P2 "<<stereo.projMatrixR<<endl;
 // 	triangulatePoints(stereo.projMatrixL, stereo.projMatrixL, imagePointsL[0], imagePointsR[0], cloudp);
 // 	DEBUG<<cloudp<<endl;
-	SimpleTriangulator triangle(stereo.intrinsicMatrixL, stereo.T);
-	Point3d newPoint;
-	//DEBUG<<"f "<<stereo.f<<" Tx: "<<stereo.Tx<<" cxL: "<<stereo.cxL<<" cyL: "<<stereo.cyL<<" cxR: "<<stereo.cxR<<" cyR: "<<stereo.cyR<<endl;
-	for (int i=0; i<boardSize.area(); i++) {
-		for (int j=0; j<numberBoards; j++) {
-			newPoint = triangle.triangulate((double)imagePointsL[j][i].x, (double)imagePointsR[j][i].x, (double)imagePointsL[j][i].y);
-	// 		newPoint.x = cloudp.at<float>(4*i);
-	// 		newPoint.y = cloudp.at<float>(4*i+1);
-	// 		newPoint.z = cloudp.at<float>(4*i+2);
-			//DEBUG<<imagePointsL[0][i].x<<" et "<<imagePointsR[0][i].x<<endl;
-			//DEBUG<<"Point "<<i+1<<": X="<<newPoint.x<<" ; Y="<<newPoint.y<<" ; Z="<<newPoint.z<<endl;
-			pointcloud.push_back(newPoint);
-		}
-	}
-
-
-	visualizerShowCamera(stereo.rotMatrixL, Vec3f(0,0,0), 255,0,0,200,"Left camera");
-	visualizerShowCamera(stereo.rotMatrixR, stereo.T, 0,0,255,200,"Right camera");
-	RunVisualization(pointcloud);
+	
+	
+	
+// 	SimpleTriangulator triangle(stereo.intrinsicMatrixL, stereo.T);
+// 	Point3d newPoint;
+// 	//DEBUG<<"f "<<stereo.f<<" Tx: "<<stereo.Tx<<" cxL: "<<stereo.cxL<<" cyL: "<<stereo.cyL<<" cxR: "<<stereo.cxR<<" cyR: "<<stereo.cyR<<endl;
+// 	for (int i=0; i<boardSize.area(); i++) {
+// 		for (int j=0; j<numberBoards; j++) {
+// 			newPoint = triangle.triangulate((double)imagePointsL[j][i].x, (double)imagePointsR[j][i].x, (double)imagePointsL[j][i].y);
+// 	// 		newPoint.x = cloudp.at<float>(4*i);
+// 	// 		newPoint.y = cloudp.at<float>(4*i+1);
+// 	// 		newPoint.z = cloudp.at<float>(4*i+2);
+// 			//DEBUG<<imagePointsL[0][i].x<<" et "<<imagePointsR[0][i].x<<endl;
+// 			//DEBUG<<"Point "<<i+1<<": X="<<newPoint.x<<" ; Y="<<newPoint.y<<" ; Z="<<newPoint.z<<endl;
+// 			pointcloudOM.push_back(newPoint);
+// 		}
+// 	}
+// 
+// 
+// 	visualizerShowCamera(stereo.rotMatrixL, Vec3f(0,0,0), 255,0,0,200,"Left camera");
+// 	visualizerShowCamera(stereo.rotMatrixR, stereo.T, 0,0,255,200,"Right camera");
+// 	RunVisualization(pointcloud);
+	
+	
+	
 	//RunVisualization(CloudPointsToPoints(pointcloud));
 	
-	// For each point, acquire depth in T reference
+	// For each point, acquire depth in T reference by inverting the pinhole equation
+	short thresh = 230;
+	cvtColor(cT, cT, CV_BGR2GRAY);
+	Point3d newPointORF;
 	
+	for (int i=0; i<boardSize.area(); i++) {
+		for (int j=0; j<numberBoards; j++) {
+			if ((short)cT.at<uchar>(imagePointsT[j][i].y, imagePointsT[j][i].x) > thresh) {
+				newPointORF.z = ((dT.at<unsigned short>(imagePointsT[j][i].y, imagePointsT[j][i].x)>>2) & 0x3FFF)  * 0.00061 / 1.15; // Z or radial distance???
+				newPointORF.x = (imagePointsT[j][i].x - orf.cx) * newPointORF.z / orf.f;
+				newPointORF.y = (imagePointsT[j][i].y - orf.cy) * newPointORF.z / orf.f;
+				//INFO<<"X: "<<newPointORF.x<<"\tet Y: "<<newPointORF.y<<"\tet Z: "<<newPointORF.z<<endl;
+				pointcloudORF.push_back(newPointORF);
+			}
+		}
+	}
+	//visualizerShowCamera(stereo.rotMatrixR, stereo.T, 0,0,255,200,"Right camera");
+	RunVisualization(pointcloudORF);
+
 	
 	// Minimize the distances between them to find the MLT rotation matrix
 	

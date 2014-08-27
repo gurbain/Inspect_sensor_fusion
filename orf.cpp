@@ -91,7 +91,6 @@ int ORF::initOrf(bool auto_exposure, int integration_time, int modulation_freq, 
 	if (amp_threshold >=0 && amp_threshold != getAmplitudeThreshold())
 		setAmplitudeThreshold(amp_threshold);
 
-
 	// Create point arrays
 	size_t buffer_size = rows_ * cols_ * 3 * sizeof (float);
 	buffer_ = (float*)malloc (buffer_size);
@@ -100,6 +99,9 @@ int ORF::initOrf(bool auto_exposure, int integration_time, int modulation_freq, 
 	yp_ = &xp_[rows_*cols_];
 	zp_ = &yp_[rows_*cols_];
 	
+	// Set camera mode
+	SR_SetMode(orfCam_, AM_COR_FIX_PTRN|AM_CONV_GRAY|AM_DENOISE_ANF|AM_CONF_MAP);
+
 	// Create a new timestamp file
 	tsfile.open(timestamps.c_str());
 	if (tsfile.is_open())
@@ -182,7 +184,7 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 		
 		// Recover images
 		try {
-			depthNewImageFrame = imread(filenamed);
+			depthNewImageFrame = imread(filenamed, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
 			visualNewImageFrame = imread(filenamev);
 			confidenceNewImageFrame = imread(filenamec);
 		} catch (int ex) {
@@ -191,8 +193,7 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 		}
 	// Else, capture images
 	} else {
-		// Verify the handle integrity
-		SR_SetMode(orfCam_, AM_COR_FIX_PTRN|AM_CONV_GRAY|AM_DENOISE_ANF|AM_CONF_MAP);
+		// Verify handle integrity
 		if (orfCam_ == NULL) {
 			ERROR<<"Read attempted on NULL SwissRanger port!"<<endl;
 			return -1;
@@ -204,7 +205,7 @@ int ORF::captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& conf
 			ERROR<<"Unable to capture data"<<endl;
 			return -1;
 		}
-
+		
 		// Points array
 		//retVal = SR_CoordTrfFlt (orfCam_, xp_, yp_, zp_, sizeof (float), sizeof (float), sizeof (float));  
 
@@ -373,8 +374,6 @@ int ORF::intrinsicCalib(string filename)
 	vector<vector<Point3f> > objectPoints(numberBoards);
 	vector<Mat> rotationVectors;
 	vector<Mat> translationVectors;
-	Mat distortionCoeffs = Mat::zeros(8, 1, CV_64F);
-	Mat intrinsicMatrix = Mat::eye(3, 3, CV_64F);
 	
 	// Usefull variables
 	int successes = 0;
@@ -435,14 +434,14 @@ int ORF::intrinsicCalib(string filename)
 	}
 	
 	// Compute calibration matrixes
-	double rms = calibrateCamera(objectPoints, imagePoints, imageSize, intrinsicMatrix, distortionCoeffs, rotationVectors, translationVectors, 0|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+	double rms = calibrateCamera(objectPoints, imagePoints, imageSize, intrinsicMatrix, distorsionCoeffs, rotationVectors, translationVectors, 0|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
 	INFO<<"ORF Calibration done! RMS reprojection error: "<<rms<<endl;
 
 	
-	// Save the intrinsics and distortions
+	// Save the intrinsics and distorsions
 	FileStorage storage(filename, FileStorage::WRITE);
 	storage<<"Intrinsicparameters"<<intrinsicMatrix;
-	storage<<"Distortioncoefficients"<<distortionCoeffs;
+	storage<<"Distortioncoefficients"<<distorsionCoeffs;
 	storage.release();
 	
 	// Print saving info
@@ -458,10 +457,6 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 	
 	int retVal;
 	if (mapx.empty() || mapy.empty()) {
-		// CV Matrix storage
-		Mat distortionCoeffs = Mat::zeros(8, 1, CV_64F);
-		Mat intrinsicMatrix = Mat::eye(3, 3, CV_64F);
-		
 		// Load calibration parameters
 		FileStorage storage;
 		retVal = storage.open(filename, FileStorage::READ);
@@ -477,7 +472,10 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 			}
 		}
 		storage["Intrinsicparameters"]>>intrinsicMatrix;
-		storage["Distortioncoefficients"]>>distortionCoeffs;
+		storage["Distortioncoefficients"]>>distorsionCoeffs;
+		f = intrinsicMatrix.at<double>(0,0);
+		cx = intrinsicMatrix.at<double>(0,2);
+		cy = intrinsicMatrix.at<double>(1,2);
 		storage.release();
 		
 		// Build the undistort map that we will use for all subsequent frames
@@ -485,7 +483,7 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 		Mat Rect, newCameraMatrix;
 		mapx.create(imageSize, CV_32FC1);
 		mapy.create(imageSize, CV_32FC1);
-		initUndistortRectifyMap(intrinsicMatrix, distortionCoeffs, Rect, newCameraMatrix, imageSize, CV_32FC1, mapx, mapy);
+		initUndistortRectifyMap(intrinsicMatrix, distorsionCoeffs, Rect, newCameraMatrix, imageSize, CV_32FC1, mapx, mapy);
 	}
 	
 	// Capture an image
