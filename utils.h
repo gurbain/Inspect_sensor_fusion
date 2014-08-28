@@ -1,7 +1,7 @@
 /*! 
 * 	\file    utils.h
 * 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
-* 	\date    July 2014
+* 	\date    August 2014
 * 	\version 0.1
 * 	\brief   Software global tools headers
 *
@@ -78,46 +78,6 @@ class TimeStamp {
 		int setTime(int meanTime_, int procTime_);
 		bool isSynchro(TimeStamp t_);
 };
-
-
-// void changeParams(ORF cam)
-// {
-// 	int time = cam.getIntegrationTime();
-// 	int thresh = cam.getAmplitudeThreshold();
-// 	double freq = cam.getModulationFrequency();
-// 	char autoexp = 'y';
-// 	
-// 	cout<<"\n======================================================================="<<endl;
-// 	cout<<" Device : "<<cam.device_id_<<endl;
-// 	cout<<" Library version : "<<cam.lib_version_<<endl; 
-// 	cout<<"=======================================================================";
-// 	cout<<"\nIntegration time: "<<cam.getIntegrationTime()<<" seconds"<<endl;
-// 	cout<<"Amplitude threshold: "<<cam.getAmplitudeThreshold()<<endl;
-// 	cout<<"Modulation frequency: "<<cam.getModulationFrequency()<<" MHz"<<endl<<endl;
-// 	
-// 	cout<<"Set auto-exposure? (Y)es/(n)o : ";
-// 	cin>>autoexp;
-// 	cout<<"New integration time: ";
-// 	cin>>time;
-// 	cout<<"New amplitude: ";
-// 	cin>>thresh;
-// 	cout<<"New modulation frequency: ";
-// 	cin>>freq;
-// 	
-// 	if (autoexp=='y') {
-// 		cam.setAutoExposure(1);
-// 	} else
-// 		cam.setAutoExposure(0);
-// 	cam.setAmplitudeThreshold(thresh);
-// 	cam.setIntegrationTime(time);
-// 	cam.setModulationFrequency(freq);
-// 	
-// 	cout<<"\nIntegration time: "<<cam.getIntegrationTime()<<"seconds"<<endl;
-// 	cout<<"Amplitude threshold: "<<cam.getAmplitudeThreshold()<<endl;
-// 	cout<<"Modulation frequency: "<<cam.getModulationFrequency()<<"MHz"<<endl<<endl;
-// 	
-// }
-
 
 
 #endif

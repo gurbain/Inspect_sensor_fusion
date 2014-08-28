@@ -1,7 +1,7 @@
 /*! 
 * 	\file    main.h
 * 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
-* 	\date    July 2014
+* 	\date    August 2014
 * 	\version 0.1
 * 	\brief   Headers of the main file
 *

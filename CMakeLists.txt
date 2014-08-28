@@ -17,7 +17,7 @@ INCLUDE_DIRECTORIES(SfM)
 LINK_LIBRARIES(SfMLib)
 
 ## Add src and target
-ADD_EXECUTABLE(Main utils.cpp camera.cpp orf.cpp halo.cpp main.cpp SimpleTriangulator.cpp SfM/Visualization.cpp)
+ADD_EXECUTABLE(Main utils.cpp camera.cpp orf.cpp halo.cpp main.cpp triangulator.cpp orientation.cpp SfM/Visualization.cpp)
 
 ## Add MESA SR libaries
 FIND_PATH( MESASR_INCLUDE_PATH libMesaSR.h

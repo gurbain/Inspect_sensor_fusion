@@ -28,7 +28,7 @@
 #define ORF_IMG_AMPLITUDE  1
 #define ORF_IMG_CONFIDENCE 2
 #define MODE (AM_CONF_MAP | AM_CONV_GRAY | AM_COR_FIX_PTRN | AM_DENOISE_ANF)
-
+#define THRESH_ORF_CONF    230
 
 // Stereo camera defines
 #define RING_BUFFER_SIZE	10

@@ -20,7 +20,7 @@ ORF::ORF() :
 orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
 imgWidth(640), imgHeight(480), 
 boardWidth (6), boardHeight (11),
-numberBoards (10), squareSize (250),
+numberBoards (10), squareSize (25),
 acqStep (2), imgNum(0), tslast(0),
 timestamps("timestamp.txt")
 {

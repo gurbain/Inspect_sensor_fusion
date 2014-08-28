@@ -239,9 +239,10 @@ void ShowCloud(const vector<cv::Point3d>& pointcloud,
 }
 
 void RunVisualizationOnly() {
-	pcl::visualization::PCLVisualizer viewer("SfMToyLibrary Viewe");
+	pcl::visualization::PCLVisualizer viewer("DEBUG Viewer");
     	
 	viewer.registerKeyboardCallback (keyboardEventOccurred, (void*)&viewer);
+	viewer.addCoordinateSystem (0.05);
 	
     while (!viewer.wasStopped ())
     {

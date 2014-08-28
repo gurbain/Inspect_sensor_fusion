@@ -59,10 +59,13 @@ class Cameras
 		// Private variables
 		int iterDummy;
 
+		// Camera handles
 		HIDS h_cam1;
 		HIDS h_cam2;
 		CAMINFO camInfo1;
 		CAMINFO camInfo2;
+		
+		// Camera buffers
 		char * act_img_buf1;
 		char * act_img_buf2;
 		char * last_img_buf1;
@@ -70,23 +73,20 @@ class Cameras
 		UEYE_IMAGE Cam1_ringbuffer[RING_BUFFER_SIZE];
 		UEYE_IMAGE Cam2_ringbuffer[RING_BUFFER_SIZE];
 		char CAMERA_1_SERIAL[11];
-
 		char *bufDummy1, *bufDummy2;
 
+		// Timestamp parameters
 		double currenttime, zerotime;
 		timeval timeRAW;
 
-		
+		// Camera parameters
 		float frameRate;
 		int exposureTime;
-		
 		int imgWidth;
 		int imgHeight;
 		Size imageSize;
-
 		int hwGain;
-
-		int pixelClockFreq; // in MHz
+		int pixelClockFreq;
 		float maxFrameRate;
 		int flashDelay;
 		int flashDuration;
@@ -94,6 +94,7 @@ class Cameras
 		int imgBitsPixel;
 		int numberOfBytesToCopy;
 
+		// Synch parameters
 		int prevImgNum;
 		
 		// Calibration parameters
@@ -104,44 +105,21 @@ class Cameras
 		const int acqStep;
 		Size boardSize;
 		
-		// Loading images
+		// Loading files parameters
 		string load_directory;
 		bool load_image;		
 
-		// Private Functions
-		void parseParameterFile();
-		
-		unsigned int initTwoCamerasNotSynch();
-		unsigned int closeTwoCamerasNotSynch();
-		unsigned int startTwoCamerasNotSynch();
-		unsigned int stopTwoCamerasNotSynch();
-		unsigned int captureTwoImagesNotSynch(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts);
-
-		unsigned int initTwoCamerasSynch();
-		unsigned int closeTwoCamerasSynch();
-		unsigned int startTwoCamerasSynch();
-		unsigned int stopTwoCamerasSynch();
-		unsigned int captureTwoImagesSynch(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag);
-
-
 	public:
-
-		// Public Variables
+		// Cameras parameters
 		char CAMERA_1_SERIAL_temp1[11];
 		char CAMERA_1_SERIAL_temp2[11];
-
 		char LEFT_CAM_SERIAL[16][11];
 		int OPTICS_ID[16];
-		
 		int leftImgNum;
 		int rightImgNum;
-
 		bool useSynchCams;
 		bool reduceImageSizeTo320x240;
 		bool useCameras;
-
-		int getImageWidth();
-		int getImageHeight();
 		
 		// Calibration matrices
 		Mat intrinsicMatrixL, distorsionCoeffsL, intrinsicMatrixR, distorsionCoeffsR, projMatrixL, projMatrixR, rotMatrixL, rotMatrixR;
@@ -151,6 +129,7 @@ class Cameras
 
 		// Public Functions
 		Cameras(void);
+		
 		double getFrameRate();
 		void setFrameRate(float newFR);
 		double getExposureTime();
@@ -158,6 +137,8 @@ class Cameras
 		void setHWGain(int gain);
 		char* getCam1Serial();
 		void setCam1Serial(const char* serialNum);
+		int getImageWidth();
+		int getImageHeight();
 
 		unsigned int initTwoCameras();
 		unsigned int initTwoCameras(string dir);
@@ -167,6 +148,8 @@ class Cameras
 		unsigned int captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag, int num=0);
 		unsigned int captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, TimeStamp& ts, int num=0, string filename="OM_calib.xml");
 		int intrinsicCalib(string filename="OM_calib.xml");
+		
+		void parseParameterFile();
 };
 
 #endif 
