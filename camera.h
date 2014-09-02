@@ -16,6 +16,7 @@
 // Project libs
 #include "defines.h"
 #include "utils.h"
+#include "calibration.h"
 
 // OpenCV libs
 #include "opencv2/core/core.hpp"
@@ -39,23 +40,10 @@
 #include <unistd.h>
 #include<fstream>
 
-#define TEST_PROJ_CHANNEL_FILE "/opt/GogglesDaemon/TEST_PROJ_CHANNEL"
-#define CAMERA_FILE "/opt/GogglesOptics/CAMERA_FILE"
-
-typedef struct _UEYE_IMAGE
-{
-	char    *pBuf;
-	int     img_id;
-	int     img_seqNum;
-	int     nBufferSize;
-} UEYE_IMAGE;
-
-
 using namespace std;
 using namespace cv;
 	
-class Cameras
-{
+class Cameras : virtual public Calibration {
 		// Private variables
 		int iterDummy;
 
@@ -96,14 +84,6 @@ class Cameras
 
 		// Synch parameters
 		int prevImgNum;
-		
-		// Calibration parameters
-		int boardWidth;
-		int boardHeight;
-		int numberBoards;
-		float squareSize; // in mm
-		const int acqStep;
-		Size boardSize;
 		
 		// Loading files parameters
 		string load_directory;
@@ -147,7 +127,7 @@ class Cameras
 		unsigned int stopTwoCameras();
 		unsigned int captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag, int num=0);
 		unsigned int captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, TimeStamp& ts, int num=0, string filename="OM_calib.xml");
-		int intrinsicCalib(string filename="OM_calib.xml");
+		int calib(string filename="OM_calib.xml");
 		
 		void parseParameterFile();
 };

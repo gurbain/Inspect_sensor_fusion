@@ -40,9 +40,8 @@
 #include <linux/version.h>
 #include <sys/stat.h>
 
-// Defines
-#define DELTATMIN	150
-#define DELTATMAX	300
+// Other libs
+#include <sys/time.h>
 
 using namespace std;
 

@@ -19,11 +19,9 @@ h_cam1(0), h_cam2(1),
 pixelClockFreq(10), frameRate(5),exposureTime(20), flashDelay(0), flashDuration(15000),
 imgWidth(640), imgHeight(480), imgBitsPixel(8), imgBufferCount(RING_BUFFER_SIZE),
 act_img_buf1(NULL), act_img_buf2(NULL), last_img_buf1(NULL), last_img_buf2(NULL),
-boardWidth (6), boardHeight (11), numberBoards (20), squareSize (25), acqStep (2),
 hwGain(100)
 {
 	imageSize = Size(imgWidth, imgHeight);
-	boardSize = Size(boardWidth, boardHeight);
 	sprintf(CAMERA_1_SERIAL, "4002795734"); // this is the serial number of the left camera, a standard initialization
 }
 
@@ -577,99 +575,9 @@ unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& righ
 	return 0;
 }
 
-int Cameras::intrinsicCalib(string filename)
+int Cameras::calib(string filename)
 {
-	// Capture images
-	Mat iL, iR;
-	vector<vector<Point2f> > imagePointsL(numberBoards), imagePointsR(numberBoards);
-	vector<vector<Point3f> > objectPoints(numberBoards);
-	Mat distorsionCoeffsL, distorsionCoeffsR;
-	Mat intrinsicMatrixL = Mat::eye(3, 3, CV_64F);
-	Mat intrinsicMatrixR = Mat::eye(3, 3, CV_64F);
-	Mat R, T, E, F;
-
-	// Usefull variables
-	int retVal;
-	int num = 0;
-	int *dummy1, *dummy2, dummy3;
-	int successes = 0;
-	int step, frame = 0;
-	bool foundR = false, foundL = false;
-	
-	// Capture images
-	TimeStamp t;
-	retVal = captureTwoImages(iL, iR, dummy1, dummy2, t, dummy3, 0);
-	
-	// Capture numberBoards images
-	while(successes < numberBoards) {
-		if((frame++ % acqStep)==0) {
-			foundL = findChessboardCorners(iL, boardSize, imagePointsL[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
-			if (foundL) {
-				foundR = findChessboardCorners(iR, boardSize, imagePointsR[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
-			}
-			//INFO<<"Checkerboard found state : ["<<foundL<<", "<<foundR<<", "<<foundT<<" ]"<<endl; 
-
-			// If sth found
-			if(foundL && foundR){
-				// Draw it if applicable
-				drawChessboardCorners(iL, boardSize, Mat(imagePointsL[successes]), foundL);
-				drawChessboardCorners(iR, boardSize, Mat(imagePointsR[successes]), foundR);
-				
-				// Add point
-				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
-				successes++;
-				INFO<<"Checkerboard found : "<<successes<<endl; 
-			}
-		}
-		// Show the result
-		imshow("Calib left", iL);
-		imshow("Calib right", iR);
-
-		// Handle pause/unpause and ESC
-		int c = cvWaitKey(15);
-		if(c == 'p') {
-			DEBUG<<"Acquisition is now paused"<<endl;
-			c = 0;
-			while(c != 'p' && c != 27){
-				c = cvWaitKey(250);
-			}
-			DEBUG<<"Acquisition is now unpaused"<<endl;
-		}
-		if(c == 27) {
-			DEBUG<<"Acquisition has been stopped by user"<<endl;
-			return 0;
-		}
-		// Get next image
-		num++;
-		retVal = captureTwoImages(iL, iR, dummy1, dummy2, t, dummy3, num);
-	}
-
-	// Compute intrinsic and extrinsic calibration matrices
-	double rms = stereoCalibrate(objectPoints, imagePointsL, imagePointsR, intrinsicMatrixL, distorsionCoeffsL, intrinsicMatrixR, distorsionCoeffsR, imageSize, R, T, E, F, TermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS, 100, 1e-5), CV_CALIB_FIX_ASPECT_RATIO + CV_CALIB_ZERO_TANGENT_DIST + CV_CALIB_SAME_FOCAL_LENGTH + CV_CALIB_FIX_K4 + CV_CALIB_FIX_K5);
-	INFO << "Optics Mount calibration done! RMS reprojection error: " << rms << endl;
-	
-	// Compute reprojection matrices
-	Rect roi1, roi2;
-	Mat RL, PL, RR, PR;
-	stereoRectify(intrinsicMatrixL, distorsionCoeffsL, intrinsicMatrixR, distorsionCoeffsR, imageSize, R, T, rotMatrixL, rotMatrixR, projMatrixL, projMatrixR, Q, CV_CALIB_ZERO_DISPARITY, 0, imageSize, &roi1, &roi2);
-	
-	// Save the calibration parameters
-	FileStorage storage(filename, FileStorage::WRITE);
-	storage<<"intrinsicMatrixL"<<intrinsicMatrixL;
-	storage<<"distorsionCoeffsL"<<distorsionCoeffsL;
-	storage<<"projMatrixL"<<projMatrixL;
-	storage<<"rotMatrixL"<<rotMatrixL;
-	storage<<"intrinsicMatrixR"<<intrinsicMatrixR;
-	storage<<"distorsionCoeffsR"<<distorsionCoeffsR;
-	storage<<"projMatrixR"<<projMatrixR;
-	storage<<"rotMatrixR"<<rotMatrixR;
-	storage<<"R"<<R;
-	storage<<"T"<<T;
-	storage<<"E"<<E;
-	storage<<"F"<<F;
-	storage.release();
-	
-	return 0;
+	stereoCalib(filename);
 }
 
 unsigned int Cameras::captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, TimeStamp& ts, int num, string filename)
@@ -691,7 +599,7 @@ unsigned int Cameras::captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::
 			INFO<<"Optics Mount Calibration file found! No need to perform calibration!"<<endl;
 		} else {
 			INFO<<"Calibration file not found! Calibration needed!"<<endl;
-			intrinsicCalib(filename);
+			calib(filename);
 			retVal = storage.open(filename, FileStorage::READ);
 			if (retVal!=1) {
 				ERROR<<"File cannot be open or read! Verify user rights"<<endl;

@@ -19,13 +19,10 @@ using namespace std;
 ORF::ORF() : 
 orfCam_(NULL), imgEntryArray_(NULL), buffer_(NULL),
 imgWidth(640), imgHeight(480), 
-boardWidth (6), boardHeight (11),
-numberBoards (10), squareSize (25),
-acqStep (2), imgNum(0), tslast(0),
+imgNum(0), tslast(0),
 timestamps("timestamp.txt")
 {
 	imageSize = Size(imgWidth, imgHeight);
-	boardSize = Size(boardWidth, boardHeight);
 }
 
 //////////////////////////
@@ -366,88 +363,9 @@ string ORF::getLibraryVersion ()
 }
 
 
-int ORF::intrinsicCalib(string filename)
+int ORF::calib(string filename)
 {
-	// CV Matrix storage
-	Mat dt, it, ct;
-	vector<vector<Point2f> > imagePoints(numberBoards);
-	vector<vector<Point3f> > objectPoints(numberBoards);
-	vector<Mat> rotationVectors;
-	vector<Mat> translationVectors;
-	
-	// Usefull variables
-	int successes = 0;
-	int num = 0;
-	int step, frame = 0;
-	bool found;
-	
-	// Capture first image
-	TimeStamp t;
-	int retVal = captureOrf(dt, it, ct, t);
-	if (retVal!=0)
-		return -1;
-	// Capture numberBoards images
-	while(successes < numberBoards) {
-		if((frame++ % acqStep)==0){
-			// Find chessboard corners:
-			found = findChessboardCorners(it, boardSize, imagePoints[successes], CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS );
-
-			// Draw it if applicable
-			drawChessboardCorners(it, boardSize, Mat(imagePoints[successes]), found);
-
-			// Add point if we find them
-			if(found){
-				objectPoints[successes] = create3DChessboardCorners(boardSize, squareSize);
-				successes++;
-				INFO<<"Checkerboard found : "<<successes<<endl; 
-			}
-		}
-		
-		// Show the result
-		imshow("Calibration", it);
-		
-		// Handle a timeout
-		if (frame > 3000) {
-			DEBUG<<"Timeout! Checkerboard not found! Please, restart calibration process"<<endl;
-		}
-
-		// Handle pause/unpause and ESC
-		int c = cvWaitKey(15);
-		if(c == 'p') {
-			DEBUG<<"Acquisition is now paused"<<endl;
-			c = 0;
-			while(c != 'p' && c != 27){
-				c = cvWaitKey(250);
-			}
-			DEBUG<<"Acquisition is now unpaused"<<endl;
-		}
-		if(c == 27) {
-			DEBUG<<"Acquisition has been stopped by user"<<endl;
-			return 0;
-		}
-		
-		// Get next image
-		num++;
-		int retVal = captureOrf(dt, it, ct, t, num);
-		if (retVal!=0)
-			return -1;
-	}
-	
-	// Compute calibration matrixes
-	double rms = calibrateCamera(objectPoints, imagePoints, imageSize, intrinsicMatrix, distorsionCoeffs, rotationVectors, translationVectors, 0|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
-	INFO<<"ORF Calibration done! RMS reprojection error: "<<rms<<endl;
-
-	
-	// Save the intrinsics and distorsions
-	FileStorage storage(filename, FileStorage::WRITE);
-	storage<<"Intrinsicparameters"<<intrinsicMatrix;
-	storage<<"Distortioncoefficients"<<distorsionCoeffs;
-	storage.release();
-	
-	// Print saving info
-	INFO<<"Calibration matrixes has been saved in "<<filename<<endl;
-	
-	return 0;
+	orfCalib(filename);
 }
 
 int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num, string filename)
@@ -464,7 +382,7 @@ int ORF::captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, 
 			INFO<<"ORF Calibration file found! No need to perform calibration!"<<endl;
 		} else {
 			INFO<<"Calibration file not found! Calibration needed!"<<endl;
-			intrinsicCalib(filename);
+			calib(filename);
 			retVal = storage.open(filename, FileStorage::READ);
 			if (retVal!=1) {
 				ERROR<<"File cannot be open or read! Verify user rights"<<endl;

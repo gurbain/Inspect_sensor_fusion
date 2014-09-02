@@ -20,8 +20,7 @@
 #define DEBUG		cout << "\033[33m["<<setprecision(3)<<((float)clock())/CLOCKS_PER_SEC<<"] "<<"DEBUG in "<<__F__<<":"<<__LINE__<<": \033[00m"
 #define INFO		cout << "["<<setprecision(3)<<((float)clock())/CLOCKS_PER_SEC<<"] "<<"INFO: "  
 
-
-// Orf cameras defines
+// Orf camera defines
 #define USE_SR4K 1
 #define USE_FILTER 1
 #define ORF_IMG_DISTANCE   0
@@ -30,18 +29,60 @@
 #define MODE (AM_CONF_MAP | AM_CONV_GRAY | AM_COR_FIX_PTRN | AM_DENOISE_ANF)
 #define THRESH_ORF_CONF    230
 
-// Stereo camera defines
+#define ORF_COLS	176
+#define ORF_ROWS	144
+#define ORF_IMAGES	3
+
+// Stereo cameras defines
 #define RING_BUFFER_SIZE	10
 #define WAIT_TIMEOUT_MS		10000
+
+#define TEST_PROJ_CHANNEL_FILE "/opt/GogglesDaemon/TEST_PROJ_CHANNEL"
+#define CAMERA_FILE "/opt/GogglesOptics/CAMERA_FILE"
+
+typedef struct _UEYE_IMAGE
+{
+	char    *pBuf;
+	int     img_id;
+	int     img_seqNum;
+	int     nBufferSize;
+} UEYE_IMAGE;
+
+// Halo cameras defines
+#define SYNCHRONOUS	1
+#define ASYNCHRONOUS	0
+#define CALIB_DIR	"calib"
+
+// Calibration defines
+//#define CALIB_DEBUG
+
+#define ORF_NUMBER_BOARDS	10
+#define ORF_ACQ_STEP		2
+
+#define STEREO_NUMBER_BOARDS	20
+#define STEREO_ACQ_STEP		2
+
+#define HALO_NUMBER_BOARDS	1
+#define HALO_ACQ_STEP		3
+
+#define BOARD_WIDTH	6
+#define BOARD_HEIGHT	11
+#define BOARD_SIZE	Size(BOARD_WIDTH, BOARD_HEIGHT)
+#define SQUARE_SIZE	25 //mm
 
 // Save and folder defines
 #define DIRECTORY "img"
 
-// Other libs
-#include <sys/time.h>
-	
+// Triangulator defines
+#define TRI_MONO	0
+#define TRI_STEREO	1
 
-// // Global variables
+// Utils defines
+#define DELTATMIN	150
+#define DELTATMAX	300
+
+
+// Global variables
 // long timeInit;
 // timeval timeValInit;
 

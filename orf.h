@@ -38,18 +38,12 @@
 // Project libs
 #include "defines.h"
 #include "utils.h"
-
-#define DEBUG_CHESSBOARD
-
+#include "calibration.h"
 
 using namespace std;
 using namespace cv;
 
-const int ORF_COLS = 176;
-const int ORF_ROWS = 144;
-const int ORF_IMAGES = 3;
-
-class ORF {
+class ORF : virtual public Calibration {
 
 	public:
 		// Common variables
@@ -70,7 +64,7 @@ class ORF {
 		int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0);
 		int captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0, string filename="ORF_calib.xml");
 		int saveRectifiedOrf();
-		int intrinsicCalib(string filename="ORF_calib.xml");
+		int calib(string filename="ORF_calib.xml");
 		
 		int setAutoExposure (bool on);
 		int setIntegrationTime (int time);
@@ -81,6 +75,11 @@ class ORF {
 		int getAmplitudeThreshold ();
 
 	private:
+		// Camera parameters
+		int imgWidth;
+		int imgHeight;
+		Size imageSize;
+		
 		// Loading images
 		string load_directory;
 		bool load_image;
@@ -91,19 +90,6 @@ class ORF {
 		float *buffer_, *xp_, *yp_, *zp_;
 		int integration_time_, modulation_freq_;
 		bool use_filter_;
-		
-		// Camera parameters
-		int imgWidth;
-		int imgHeight;
-		Size imageSize;
-		
-		// Calibration parameters
-		int boardWidth;
-		int boardHeight;
-		int numberBoards;
-		float squareSize; // in mm
-		const int acqStep;
-		Size boardSize;
 		
 		// Rectification variables
 		Mat mapx;
