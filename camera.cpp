@@ -1,9 +1,9 @@
 /*! 
 * 	\file    camera.cpp
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    July 2014
 * 	\version 0.1
-* 	\brief   Sources for stereo rig class
+* 	\brief   Sources for stereo rig class adapted from VERTIGO project
 *
 * 	License: The MIT License (MIT)
 * 	Copyright (c) 2014, Massachussets Institute of Technology
@@ -14,11 +14,12 @@
 
 Cameras::Cameras() : 
 iterDummy(0),
-useSynchCams(true), reduceImageSizeTo320x240(true), useCameras(true),
+useSynchCams(true), reduceImageSizeTo320x240(false), useCameras(true),
 h_cam1(0), h_cam2(1),
 pixelClockFreq(10), frameRate(5),exposureTime(20), flashDelay(0), flashDuration(15000),
 imgWidth(640), imgHeight(480), imgBitsPixel(8), imgBufferCount(RING_BUFFER_SIZE),
 act_img_buf1(NULL), act_img_buf2(NULL), last_img_buf1(NULL), last_img_buf2(NULL),
+timestamps("timestampOpticsMount.txt"),
 hwGain(100)
 {
 	imageSize = Size(imgWidth, imgHeight);
@@ -97,7 +98,7 @@ void Cameras::setCam1Serial(const char* serialNum)
 	return;
 }
 
-unsigned int Cameras::initTwoCameras()
+unsigned int Cameras::init()
 {
 	parseParameterFile();
 	if (this->reduceImageSizeTo320x240) {
@@ -371,20 +372,46 @@ unsigned int Cameras::initTwoCameras()
 		DEBUG<<"Enable Event Failed (Code: "<<retVal<<")"<<endl;
 		return retVal;
 	}
+	
+	// Create a new timestamp file and dir
+	time_t rawtime;
+	struct tm * timeinfo;
+	char buffer1[100];
+	stringstream buffer2;
+	time (&rawtime);
+	timeinfo = localtime(&rawtime);
+	strftime(buffer1,100,"%d-%m-%Y-%I-%M", timeinfo);
+	buffer2<<SAVE_DIR<<"/"<<buffer1;
+	string dir = buffer2.str();
+	struct stat st;
+	if(stat(dir.c_str(),&st) != 0) {
+		INFO<<"Creation of the folder "<<this->save_dir<<endl;
+		mkdir(this->save_dir.c_str(), 0777);
+		INFO<<"Creation of the folder "<<dir<<endl;			
+		mkdir(dir.c_str(), 0777);
+	}
+	this->save_dir = dir;
+	stringstream ss;
+	ss<<this->save_dir<<"/"<<this->timestamps;
+	tsfile.open(ss.str().c_str());
+	ss.str("");
+	if (tsfile.is_open())
+		tsfile<<endl<<endl<<"######################### NEW SESSION #######################"<<endl<<endl;
+	
 
 	DEBUG<<"Initialization successfull!"<<endl;
 	return 0;
 }
 
-unsigned int Cameras::initTwoCameras(string dir)
+unsigned int Cameras::init(string dir)
 {
-	this->load_directory = dir;
+	this->load_dir = dir;
 	this->load_image = true;
 	
 	return 0;
 }
 
-unsigned int Cameras::closeTwoCameras()
+unsigned int Cameras::close()
 {
 	if (!load_image) {
 		int i, retVal;
@@ -420,7 +447,7 @@ unsigned int Cameras::closeTwoCameras()
 	return 0;
 }
 
-unsigned int Cameras::startTwoCameras()
+unsigned int Cameras::start()
 {
 	if (!load_image) {
 		int retVal;
@@ -445,7 +472,7 @@ unsigned int Cameras::startTwoCameras()
 
 }
 
-unsigned int Cameras::stopTwoCameras()
+unsigned int Cameras::stop()
 {
 	if (!load_image) {
 		int retVal;
@@ -473,13 +500,16 @@ unsigned int Cameras::captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& righ
 		// Set the names
 		char buffer[10];
 		sprintf(buffer, "%i", num);
-		string filenamel = string(this->load_directory) + "/leftImg" + buffer + ".png";
-		string filenamer = string(this->load_directory) + "/rightImg" + buffer + ".png";
-
+		string filenamel = string(this->load_dir) + "/leftImg" + buffer + ".png";
+		string filenamer = string(this->load_dir) + "/rightImg" + buffer + ".png";
 		// Recover images
 		try {
-			leftNewImageFrame = imread(filenamel);
-			rightNewImageFrame = imread(filenamer);
+			leftNewImageFrame = imread(filenamel, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+			rightNewImageFrame = imread(filenamer, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+			if (leftNewImageFrame.empty() || rightNewImageFrame.empty()) {
+				ERROR<<"No more stereo file found! If you saw nothing, check directory!"<<endl;
+				return -1;
+			}
 		} catch (int ex) {
 			ERROR<<"Exception when reading OpticsMount file "<<ex<<endl;
 			return -1;
@@ -635,8 +665,6 @@ unsigned int Cameras::captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::
 		mapyL.create(imageSize, CV_32FC1);
 		mapxR.create(imageSize, CV_32FC1);
 		mapyR.create(imageSize, CV_32FC1);
-// 		initUndistortRectifyMap(intrinsicMatrixL, distorsionCoeffsL, RectL, newCameraMatrixL, imageSize, CV_32FC1, mapxL, mapyL);
-// 		initUndistortRectifyMap(intrinsicMatrixR, distorsionCoeffsR, RectR, newCameraMatrixR, imageSize, CV_32FC1, mapxR, mapyR);
 		initUndistortRectifyMap(intrinsicMatrixL, distorsionCoeffsL, rotMatrixL, projMatrixL, imageSize, CV_16SC2, mapxL, mapyL);
 		initUndistortRectifyMap(intrinsicMatrixR, distorsionCoeffsR, rotMatrixR, projMatrixR, imageSize, CV_16SC2, mapxR, mapyR);
 	}
@@ -644,13 +672,11 @@ unsigned int Cameras::captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::
 	// Capture an image
 	Mat iL, iR;
 	TimeStamp t;
-	retVal = captureTwoImages(iL, iR, img_num1, img_num2, ts, flags, num);
+	retVal = captureTwoImages(iL, iR, img_num1, img_num2, t, flags, num);
 	if (retVal!=0)
 		return -1;
 	
 	// Remap the image
-// 	leftNewImageFrame = iL;
-// 	rightNewImageFrame = iR;
 	remap(iL, leftNewImageFrame, mapxL, mapyL, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
 	remap(iR, rightNewImageFrame, mapxR, mapyR, CV_INTER_LINEAR, BORDER_CONSTANT, Scalar(0,0,0));
 	
@@ -768,4 +794,106 @@ void Cameras::parseParameterFile() {
 	} else {
 		DEBUG << "Unable to open: " << CAMERA_FILE << endl;
 	}
+}
+
+unsigned int Cameras::saveTwoRectifiedImages()
+{
+	if (load_image) {
+		ERROR<<"You cannot save images loaded from hard drive!"<<endl;
+		return -1;
+	}
+	
+	// Create variables to save
+	TimeStamp ts;
+	Mat leftImg, rightImg;
+	
+	// Capture images
+	this->captureTwoRectifiedImages(leftImg, rightImg, ts);
+	
+	//Save jpg images
+	stringstream ssl, ssr;
+	ssl<<this->save_dir<<"/leftImg"<<imgNum<<".png";
+	ssr<<this->save_dir<<"/rightImg"<<imgNum<<".png";
+	string filenamel = ssl.str();
+	string filenamer = ssr.str();
+	ssl.str("");
+	ssr.str("");
+	
+	try {
+		imwrite(filenamel, leftImg);
+		imwrite(filenamer, rightImg);
+	} catch (int ex) {
+		ERROR<<"Exception converting image to png format: "<<ex<<endl;
+		return -1;
+	}
+	
+	// Save time stamp
+	if (!tsfile.is_open()) {
+		tsfile.open(this->timestamps.c_str());
+		tsfile<<endl<<endl<<"######################### NEW SESSION #######################"<<endl<<endl;
+		if (!tsfile.is_open()) {
+			ERROR<<"Impossible to open the file"<<endl;
+			return -1;
+		}
+	}
+	if (imgNum==0)
+		cout<<"Saving Opticsmount images into folder "<<this->save_dir<<endl;
+	tsfile<<"IMAGENUM\t"<<imgNum<<"\tPROCTIME\t"<<ts.getProcTime()<<"\tMEANTIME\t"<<ts.getMeanTime()<<"\tDIFF\t"<<ts.getMeanTime()-tslast<<endl;
+
+	imgNum++;
+	tslast = ts.getMeanTime();
+	
+	return 0;
+}
+
+unsigned int Cameras::saveTwoImages()
+{
+	if (load_image) {
+		ERROR<<"You cannot save images loaded from hard drive!"<<endl;
+		return -1;
+	}
+	
+	// Create variables to save
+	TimeStamp ts;
+	Mat leftImg, rightImg;
+	int *img_num1, *img_num2;
+	int flags = 0;
+	
+	// Capture images
+	this->captureTwoImages(leftImg, rightImg, img_num1, img_num2, ts, flags);
+	
+	//Save jpg images
+	stringstream ssl, ssr;
+	ssl<<this->save_dir<<"/leftImg"<<imgNum<<".png";
+	ssr<<this->save_dir<<"/rightImg"<<imgNum<<".png";
+	string filenamel = ssl.str();
+	string filenamer = ssr.str();
+	ssl.str("");
+	ssr.str("");
+	
+	try {
+		imwrite(filenamel, leftImg);
+		imwrite(filenamer, rightImg);
+	} catch (int ex) {
+		ERROR<<"Exception converting image to png format: "<<ex<<endl;
+		return -1;
+	}
+	
+	// Save time stamp
+	if (!tsfile.is_open()) {
+		tsfile.open(this->timestamps.c_str());
+		tsfile<<endl<<endl<<"######################### NEW SESSION #######################"<<endl<<endl;
+		if (!tsfile.is_open()) {
+			ERROR<<"Impossible to open the file"<<endl;
+			return -1;
+		}
+	}
+	if (imgNum==0)
+		INFO<<"Saving stereo images into folder "<<this->save_dir<<endl;
+	tsfile<<"IMAGENUM\t"<<imgNum<<"\tPROCTIME\t"<<ts.getProcTime()<<"\tMEANTIME\t"<<ts.getMeanTime()<<"\tDIFF\t"<<ts.getMeanTime()-tslast<<endl;
+
+	imgNum++;
+	tslast = ts.getMeanTime();
+	
+	return 0;
 }

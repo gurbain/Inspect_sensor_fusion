@@ -1,6 +1,6 @@
 /*! 
 * 	\file    orf.h
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    July 2014
 * 	\version 0.1
 * 	\brief   Headers for a Halo class (ORF + Cameras)
@@ -52,7 +52,8 @@ class Halo : virtual public Calibration
 		int close();
 		int captureAllImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag=ASYNCHRONOUS);
 		int captureAllRectifiedImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag=ASYNCHRONOUS);
-		int capture3Dcloud();
+		int saveAllImages();
+		int capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud);
 		int calib(string filename="HALO_calib.xml");
 		
 	private:		

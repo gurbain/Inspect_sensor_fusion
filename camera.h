@@ -1,9 +1,9 @@
 /*! 
 * 	\file    camera.h
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    July 2014
 * 	\version 0.1
-* 	\brief   Headers for stereo rig class
+* 	\brief   Headers for stereo rig class adapted from VERTIGO project
 *
 * 	License: The MIT License (MIT)
 * 	Copyright (c) 2014, Massachussets Institute of Technology
@@ -85,9 +85,16 @@ class Cameras : virtual public Calibration {
 		// Synch parameters
 		int prevImgNum;
 		
-		// Loading files parameters
-		string load_directory;
-		bool load_image;		
+		// File load parameters
+		string load_dir;
+		bool load_image;
+
+		// File save parameters
+		string save_dir;
+		ofstream tsfile;
+		string timestamps;
+		int imgNum;
+		int tslast;		
 
 	public:
 		// Cameras parameters
@@ -120,13 +127,15 @@ class Cameras : virtual public Calibration {
 		int getImageWidth();
 		int getImageHeight();
 
-		unsigned int initTwoCameras();
-		unsigned int initTwoCameras(string dir);
-		unsigned int closeTwoCameras();
-		unsigned int startTwoCameras();
-		unsigned int stopTwoCameras();
+		unsigned int init();
+		unsigned int init(string dir);
+		unsigned int close();
+		unsigned int start();
+		unsigned int stop();
 		unsigned int captureTwoImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, int* img_num1, int* img_num2, TimeStamp& ts, int& synchCheckFlag, int num=0);
 		unsigned int captureTwoRectifiedImages(cv::Mat& leftNewImageFrame, cv::Mat& rightNewImageFrame, TimeStamp& ts, int num=0, string filename="OM_calib.xml");
+		unsigned int saveTwoRectifiedImages();
+		unsigned int saveTwoImages();
 		int calib(string filename="OM_calib.xml");
 		
 		void parseParameterFile();

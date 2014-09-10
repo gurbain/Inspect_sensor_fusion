@@ -1,9 +1,9 @@
 /*! 
 * 	\file    main.cpp
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
-* 	\date    August 2014
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
+* 	\date    June 2014
 * 	\version 0.1
-* 	\brief   Main program for optical range finder and stereo cameras acquisition
+* 	\brief   Main program
 *
 * 	License: The MIT License (MIT)
 * 	Copyright (c) 2014, Massachussets Institute of Technology
@@ -88,12 +88,217 @@ int main(int argc, char **argv) {
 }*/
 
 
+// // Project libs
+// #include "main.h"
+// #include "utils.h"
+// #include "defines.h"
+// #include "halo.h"
+// 
+// using namespace std;
+// using namespace cv;
+// 
+// 
+// // Allocate variables
+// ORF orf;
+// 
+// // Create a CTRL-C handler
+// void keyboard_handle(int s) {
+// 	orf.close();
+// 	exit(1);
+// }
+// 
+// // Create a mouse clicks handler
+// int x_img, y_img;
+// void mouse_handle(int event, int x, int y, int flags, void* userdata) {
+// 	if  ( event == EVENT_LBUTTONDOWN ) {
+// 		x_img = x;
+// 		y_img = y;
+// 	}
+// }
+// 
+// // Main program
+// int main(int argc, char **argv) {
+// 	
+// 	init();
+// 	
+// 	// For catching a CTRL-C
+// 	signal(SIGINT,keyboard_handle);
+// 	
+// 	// Initialize
+// 	orf.init();
+// 	
+// 	// Initialize mouse clicks
+// 	x_img = 0;
+// 	y_img = 0;
+// 	namedWindow("Depth", 1);
+// 	namedWindow("Intensity", 1);
+// 	namedWindow("Confidency", 1);
+// 	setMouseCallback("Depth", mouse_handle, NULL);
+// 	setMouseCallback("Intensity", mouse_handle, NULL);
+// 	setMouseCallback("Confidency", mouse_handle, NULL);
+// 	
+// 	// Main loop
+// 	while(true) {
+// 		// Capture orf images
+// 		Mat dT, iT, cT;
+// 		TimeStamp t;
+// 		orf.captureRectifiedOrf(dT, iT, cT, t);		
+// 		
+// 		// Add circle and text on images
+// 		Point p(x_img, y_img);
+// 		char buffer[15];
+// 		sprintf(buffer, "%f", ((dT.at<unsigned short>(p.y, p.x)>>2) & 0x3FFF)*0.00061);
+// 		string disp = String("Distance from this point: ") + buffer;
+// 		Mat dT_txt(dT.size(), CV_8UC3), iT_txt(iT.size(), CV_8UC3), cT_txt(cT.size(), CV_8UC3);
+// 		cvtColor(dT.clone(), dT_txt, CV_GRAY2RGB);
+// 		cvtColor(iT, iT_txt, CV_GRAY2RGB);
+// 		cvtColor(cT, cT_txt, CV_GRAY2RGB);
+// 		circle (dT_txt, p, 5, Scalar(0, 0, 255), 3);
+// 		circle (iT_txt, p, 5, Scalar(0, 0, 255), 3);
+// 		circle (cT_txt, p, 5, Scalar(0, 0, 255), 3);
+// 		putText(dT_txt, disp, Point(30,30), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255, 0, 0), 1, CV_AA);
+// 		putText(iT_txt, disp, Point(30,30), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255, 0, 0), 1, CV_AA);
+// 		putText(cT_txt, disp, Point(30,30), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255, 0, 0), 1, CV_AA);
+// 		
+// 		// Display images
+// 		imshow("Depth", dT_txt);
+// 		imshow("Intensity", iT_txt);
+// 		imshow("Confidency", cT_txt);
+// 		
+// 		// Handle pause/unpause and ESC
+// 		int c = cvWaitKey(1);
+// 		if(c == 'p') {
+// 			DEBUG<<"Acquisition is now paused"<<endl;
+// 			c = 0;
+// 			while(c != 'p' && c != 27){
+// 				c = cvWaitKey(250);
+// 			}
+// 			DEBUG<<"Acquisition is now unpaused"<<endl;
+// 		}
+// 		if(c == 27) {
+// 			DEBUG<<"Acquisition has been stopped by user"<<endl;
+// 			break;
+// 		}
+// 	}
+// 	
+//  	// Close camera
+//   	orf.close();
+// 	
+// 	return 0;
+// }
+
 // Project libs
 #include "main.h"
 #include "utils.h"
 #include "defines.h"
-#include "halo.h"
+#include "halo.h"/*
 
+using namespace std;
+using namespace cv;
+
+
+// Allocate variables
+ORF orf;
+
+// Create a CTRL-C handler
+void my_handler(int s){
+	WaitForVisualizationThread();
+	orf.close();
+	exit(1);
+}
+
+int main(int argc, char **argv) {
+	
+	init();
+	
+	// For catching a CTRL-C
+	signal(SIGINT,my_handler);
+	
+	// Initialize
+	orf.init();
+	
+	// Launch vizualization (you can give the pixel dimensions)
+	RunVisualizationThread(2);
+	
+	// Main loop
+	while(true) {
+		// Capture cloud
+		vector<Point3d> pointcloud;
+		vector<Vec3b> rgbcloud;
+		orf.capture3Dcloud(pointcloud, rgbcloud);
+		
+		// Display cloud
+		ShowClouds(pointcloud, rgbcloud);
+	}
+	
+	// Wait for updating vizualization
+	WaitForVisualizationThread();
+	
+ 	// Close camera
+  	orf.close();
+	
+	return 0;
+}*/
+
+// using namespace std;
+// using namespace cv;
+// 
+// 
+// // Allocate variables
+// Halo halo;
+// 
+// // Create a CTRL-C handler
+// void exit_handler(int s){
+// 	WaitForVisualizationThread();
+// 	halo.close();
+// 	exit(1);
+// }
+// 
+// int main(int argc, char **argv) {
+// 	
+// 	init();
+// 	
+// 	// For catching a CTRL-C
+// 	signal(SIGINT,exit_handler);
+// 	
+// 	// Initialize
+// 	int retVal = halo.init("../examples/image_set_chessboard");
+// 	if (retVal!=0)
+// 		exit_handler(0);
+// 	
+// 	// Launch vizualization (you can give the pixel dimensions)
+// 	RunVisualizationThread(3);
+// 		
+// 	// Main loop
+// 	while(true) {
+// 		// Capture cloud
+// 		vector<Point3d> pointcloud;
+// 		vector<Vec3b> rgbcloud;
+// 		halo.capture3Dcloud(pointcloud, rgbcloud);
+// 		
+// 		// Display cloud
+// 		ShowClouds(pointcloud, rgbcloud);
+// 		
+// 		// Wait between each cloud
+// 		usleep(600000);
+// 	}
+// 
+// 	// Wait for updating vizualization
+// 	WaitForVisualizationThread();
+// 	
+// 	// Close cameras
+// 	halo.close();
+// 	
+// 	return 0;
+// }
+
+
+// // Project libs
+// #include "main.h"
+// #include "utils.h"
+// #include "defines.h"
+// #include "halo.h"
+// 
 using namespace std;
 using namespace cv;
 
@@ -115,7 +320,7 @@ int main(int argc, char **argv) {
 	signal(SIGINT,my_handler);
 	
 	// Initialize
-	int retVal = halo.init("/home/gabs48/results/13-08-2014-07-49");
+	int retVal = halo.init();
 	
 	// Calibrate
 	halo.calib();
@@ -126,12 +331,14 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
+
+
 // // Project libs
 // #include "main.h"
 // #include "utils.h"
 // #include "defines.h"
 // #include "camera.h"
-// 
+// halo
 // #include "opencv2/core/core.hpp"
 // #include "opencv2/calib3d/calib3d.hpp"
 // #include <opencv2/highgui/highgui.hpp>

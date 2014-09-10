@@ -5,19 +5,16 @@ if(COMMAND cmake_policy)
 endif(COMMAND cmake_policy)
 set(CMAKE_BUILD_TYPE Debug)
 
+set(COMPILE_EXAMPLES)
+
 ## Find packages
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(PCL REQUIRED)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 
-## Add structure from motion
-ADD_SUBDIRECTORY(SfM)
-INCLUDE_DIRECTORIES(SfM)
-LINK_LIBRARIES(SfMLib)
-
 ## Add src and target
-ADD_EXECUTABLE(Main utils.cpp camera.cpp orf.cpp halo.cpp main.cpp triangulator.cpp orientation.cpp calibration.cpp SfM/Visualization.cpp)
+ADD_LIBRARY(inspect_sensors utils.cpp calibration.cpp camera.cpp orf.cpp halo.cpp triangulator.cpp orientation.cpp visualization.cpp)
 
 ## Add MESA SR libaries
 FIND_PATH( MESASR_INCLUDE_PATH libMesaSR.h
@@ -36,7 +33,7 @@ FIND_LIBRARY( MESASR_LIBRARY
 	/sw/lib
 	/opt/local/lib
 	DOC "The MESASR library")
-TARGET_LINK_LIBRARIES(Main ${MESASR_LIBRARY})
+TARGET_LINK_LIBRARIES(inspect_sensors ${MESASR_LIBRARY})
 INCLUDE_DIRECTORIES(${MESASR_INCLUDE_PATH})
 
 ## Add ueye
@@ -54,11 +51,11 @@ FIND_LIBRARY(UEYEUSB_LIBRARY
 	/usr/lib
 	$ENV{ProgramFiles}/IDS/ueye/Develop/lib
 )
-TARGET_LINK_LIBRARIES(Main ${UEYEUSB_LIBRARY})
+TARGET_LINK_LIBRARIES(inspect_sensors ${UEYEUSB_LIBRARY})
 INCLUDE_DIRECTORIES(${UEYEUSB_INCLUDE_DIR})
 
 ## Add OpenCV
-TARGET_LINK_LIBRARIES(Main ${OpenCV_LIBS})
+TARGET_LINK_LIBRARIES(inspect_sensors ${OpenCV_LIBS})
 
 ## Add PCL
 if(EIGEN_INCLUDE_DIRS) # if compiling with PCL, it will bring Eigen with it
@@ -66,11 +63,45 @@ if(EIGEN_INCLUDE_DIRS) # if compiling with PCL, it will bring Eigen with it
 	include_directories(${EIGEN_INCLUDE_DIRS})
 	add_definitions( -DUSE_EIGEN )
 endif()
-LINK_LIBRARIES(Main ${PCL_LIBRARY_DIRS})
-target_link_libraries(Main ${PCL_LIBRARIES})
+LINK_LIBRARIES(inspect_sensors ${PCL_LIBRARY_DIRS})
+target_link_libraries(inspect_sensors ${PCL_LIBRARIES})
 INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS})
 ADD_DEFINITIONS(${PCL_DEFINITIONS})
 
 ## Add Boost library
-TARGET_LINK_LIBRARIES(Main ${BOOST_LIBRARIES})
+TARGET_LINK_LIBRARIES(inspect_sensors ${BOOST_LIBRARIES})
+
+# Build Main program
+add_executable(Main main.cpp)
+target_link_libraries(Main inspect_sensors)
+
+# Build examples
+add_executable(orfCapture examples/orfCapture.cpp)
+target_link_libraries(orfCapture inspect_sensors)
+add_executable(orfSave examples/orfSave.cpp)
+target_link_libraries(orfSave inspect_sensors)
+add_executable(orf3DCloud examples/orf3DCloud.cpp)
+target_link_libraries(orf3DCloud inspect_sensors)
+add_executable(orfFile3DCloud examples/orfFile3DCloud.cpp)
+target_link_libraries(orfFile3DCloud inspect_sensors)
+add_executable(orfMeasDepth examples/orfMeasDepth.cpp)
+target_link_libraries(orfMeasDepth inspect_sensors)
+add_executable(orfCalib examples/orfCalib.cpp)
+target_link_libraries(orfCalib inspect_sensors)
+
+add_executable(stereoCapture examples/stereoCapture.cpp)
+target_link_libraries(stereoCapture inspect_sensors)
+add_executable(stereoSave examples/stereoSave.cpp)
+target_link_libraries(stereoSave inspect_sensors)
+add_executable(stereoCalib examples/stereoCalib.cpp)
+target_link_libraries(stereoCalib inspect_sensors)
+
+add_executable(haloSave examples/haloSave.cpp)
+target_link_libraries(haloSave inspect_sensors)
+add_executable(haloCapture examples/haloCapture.cpp)
+target_link_libraries(haloCapture inspect_sensors)
+add_executable(haloCalib examples/haloCalib.cpp)
+target_link_libraries(haloCalib inspect_sensors)
+add_executable(haloFileCalib examples/haloFileCalib.cpp)
+target_link_libraries(haloFileCalib inspect_sensors)
 

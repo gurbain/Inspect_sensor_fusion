@@ -33,6 +33,8 @@
 #define ORF_ROWS	144
 #define ORF_IMAGES	3
 
+#define ORF_CLOUD_DOWNSAMPLING	5
+
 // Stereo cameras defines
 #define RING_BUFFER_SIZE	10
 #define WAIT_TIMEOUT_MS		10000
@@ -54,16 +56,11 @@ typedef struct _UEYE_IMAGE
 #define CALIB_DIR	"calib"
 
 // Calibration defines
-//#define CALIB_DEBUG
+#define CALIB_DEBUG
 
 #define ORF_NUMBER_BOARDS	10
-#define ORF_ACQ_STEP		2
-
 #define STEREO_NUMBER_BOARDS	20
-#define STEREO_ACQ_STEP		2
-
-#define HALO_NUMBER_BOARDS	1
-#define HALO_ACQ_STEP		3
+#define HALO_NUMBER_BOARDS	5
 
 #define BOARD_WIDTH	6
 #define BOARD_HEIGHT	11
@@ -71,7 +68,7 @@ typedef struct _UEYE_IMAGE
 #define SQUARE_SIZE	25 //mm
 
 // Save and folder defines
-#define DIRECTORY "img"
+#define SAVE_DIR "/home/gabs48/results"
 
 // Triangulator defines
 #define TRI_MONO	0

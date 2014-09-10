@@ -1,6 +1,6 @@
 /*! 
 * 	\file    orf.cpp
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    July 2014
 * 	\version 0.1
 * 	\brief   Sources for Halo class
@@ -28,26 +28,25 @@ int Halo::init()
 	
 	int retVal;
 	
-	retVal = orf.initOrf();
+	retVal = orf.init();
 	if (retVal!=0) {
-		orf.closeOrf();
+		orf.close();
 		return -1;
 	}
 	isOrfOpen = true;
-	retVal = stereo.initTwoCameras();
+	retVal = stereo.init();
 	if (retVal!=0) {
-		orf.closeOrf();
-		stereo.closeTwoCameras();
+		orf.close();
+		stereo.close();
 		return -1;
 	}
-	retVal = stereo.startTwoCameras();
+	retVal = stereo.start();
 	if (retVal!=0) {
-		orf.closeOrf();
-		stereo.closeTwoCameras();;
+		orf.close();
+		stereo.close();;
 		return -1;
 	}
 	isCamOpen = true;
-	//rect.calcRectificationMaps(imgWidth, imgHeight, CALIB_DIR);
 	
 	return 0;
 }
@@ -64,8 +63,8 @@ int Halo::init(string directory)
 		return -1;
 	}
 	this->load_directory = directory;
-	orf.initOrf(directory);
-	stereo.initTwoCameras(directory);
+	orf.init(directory);
+	stereo.init(directory);
 
 	// Load the timestamp
 	string tsOM = directory + "/timestampOpticsMount.txt";
@@ -104,6 +103,7 @@ int Halo::init(string directory)
 	isOrfOpen = true;
 	this->load_num = 0;
 	
+	return 0;	
 }
 
 int Halo::close()
@@ -112,10 +112,10 @@ int Halo::close()
 	
 	if (!load_image) {
 		if (isOrfOpen) {
-			retVal = orf.closeOrf();
+			retVal = orf.close();
 		}
 		if (isCamOpen){
-			retVal = stereo.closeTwoCameras();
+			retVal = stereo.close();
 		}
 	}
 	
@@ -270,8 +270,32 @@ int Halo::captureAllRectifiedImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT,
 	return 0;
 }
 
-int Halo::capture3Dcloud()
+int Halo::saveAllImages()
 {
+	if (load_image) {
+		ERROR<<"You cannot save images loaded from hard drive!"<<endl;
+		return -1;
+	}
+	
+	this->stereo.saveTwoImages();
+	this->orf.saveOrf();
+	
+	return 0;
+}
+
+int Halo::capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud)
+{
+	// Capture images to merge
+	//Mat iL, iR, dT, iT, cT;
+	//this->captureAllRectifiedImages(iL, iR, dT, iT, cT);
+	
+	// If we load from file
+	if (load_image) {
+		orf.capture3Dcloud(pointcloud, rgbcloud, this->load_num, ORF_CLOUD_DOWNSAMPLING);
+		this->load_num++;
+	}
+	
+	
 	return 0;
 }
 

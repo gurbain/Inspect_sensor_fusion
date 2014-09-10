@@ -1,6 +1,6 @@
 /*! 
 * 	\file    utils.h
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    August 2014
 * 	\version 0.1
 * 	\brief   Software global tools headers

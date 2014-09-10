@@ -1,6 +1,6 @@
 /*! 
 * 	\file    orf.h
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    July 2014
 * 	\version 0.1
 * 	\brief   Headers for optical range finder class
@@ -17,6 +17,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/contrib/contrib.hpp"
 
 // ORF libs
 #include <libMesaSR.h>
@@ -39,6 +40,7 @@
 #include "defines.h"
 #include "utils.h"
 #include "calibration.h"
+#include "visualization.h"
 
 using namespace std;
 using namespace cv;
@@ -58,12 +60,14 @@ class ORF : virtual public Calibration {
 		ORF ();
 		~ORF ();
 
-		int initOrf(bool auto_exposure=true, int integration_time=100, int modulation_freq=15, int amp_threshold=20, string ether_addr="192.168.1.42");
-		int initOrf(string directory);
-		int closeOrf();
+		int init(string directory);
+		int init();
+		int close();
 		int captureOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0);
 		int captureRectifiedOrf(Mat& depthNewImageFrame, Mat& visualNewImageFrame, Mat& confidenceNewImageFrame, TimeStamp& ts, int num=0, string filename="ORF_calib.xml");
 		int saveRectifiedOrf();
+		int saveOrf();
+		int capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, int num=0, int downsampling=4, string filename="ORF_calib.xml");
 		int calib(string filename="ORF_calib.xml");
 		
 		int setAutoExposure (bool on);
@@ -79,10 +83,9 @@ class ORF : virtual public Calibration {
 		int imgWidth;
 		int imgHeight;
 		Size imageSize;
-		
-		// Loading images
-		string load_directory;
-		bool load_image;
+		bool auto_exposure;
+		int integration_time, modulation_freq, amp_threshold;
+		string ether_addr;
 		
 		// Camera variables
 		CMesaDevice* orfCam_;			
@@ -96,10 +99,15 @@ class ORF : virtual public Calibration {
 		Mat mapy;
 		
 		// File save parameters
+		string save_dir;
 		ofstream tsfile;
 		string timestamps;
 		int imgNum;
 		int tslast;
+		
+		// File load parameters
+		string load_dir;
+		bool load_image;
 		
 		// Private functions
 		void SafeCleanup();
