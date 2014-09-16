@@ -1,2 +1,0 @@
-/usr/bin/ar cr libV3D.a  CMakeFiles/V3D.dir/Math/v3d_nonlinlsq.cpp.o CMakeFiles/V3D.dir/Math/v3d_optimization.cpp.o CMakeFiles/V3D.dir/Math/v3d_optimization_lm.cpp.o CMakeFiles/V3D.dir/Geometry/v3d_metricbundle.cpp.o CMakeFiles/V3D.dir/Geometry/v3d_stereobundle.cpp.o
-/usr/bin/ranlib libV3D.a

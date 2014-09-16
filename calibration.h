@@ -18,11 +18,6 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-// PCL
-// #include <pcl/common/common_headers.h>
-// #include <pcl/io/pcd_io.h>
-// #include <pcl/visualization/pcl_visualizer.h>
-
 // Common libs
 #include <stdint.h>
 #include <iomanip>

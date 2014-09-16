@@ -1,1 +1,0 @@
-/usr/bin/c++   -O3 -DNDEBUG    CMakeFiles/bundle_varying_nonlinlsq.dir/bundle_varying_nonlinlsq.cpp.o  -o bundle_varying_nonlinlsq  -L/home/gabs48/src/testsVertigo/code/SSBA-3.0 -rdynamic ../libV3D.a ../libcolamd.a -Wl,-rpath,/home/gabs48/src/testsVertigo/code/SSBA-3.0 

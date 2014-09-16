@@ -30,12 +30,14 @@
 #include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
+#include <math.h>
 
 // Project libs
 #include "defines.h"
 #include "utils.h"
 #include "orf.h"
 #include "camera.h"
+#include "haloTriangulator.h"
 
 using namespace std;
 using namespace cv;
@@ -53,7 +55,7 @@ class Halo : virtual public Calibration
 		int captureAllImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag=ASYNCHRONOUS);
 		int captureAllRectifiedImages(Mat& iL, Mat& iR, Mat& dT, Mat& vT, Mat& cT, int flag=ASYNCHRONOUS);
 		int saveAllImages();
-		int capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud);
+		int capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, string filename="HALO_calib.xml");
 		int calib(string filename="HALO_calib.xml");
 		
 	private:		
@@ -75,6 +77,10 @@ class Halo : virtual public Calibration
 		ifstream omFile, orfFile;
 		int load_num;
 		string load_directory;
+		
+		// Fusion
+		bool fusion_first;
+		HaloTriangulator *t;
 };
 
 #endif

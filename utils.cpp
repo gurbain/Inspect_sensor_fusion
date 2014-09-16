@@ -149,7 +149,7 @@ void init()
 	cout<<"Author: "<<__AUTHOR__<<endl;
 	cout<<"Space Systems Lab (SSL) - INSPECT project"<<endl;
 	cout<<"July 2014 - Massachussets Institute of Technology (MIT)\n"<<endl;
-	cout<<"=====================================================================\n"<<endl;
+	cout<<"===================================================================\n"<<endl;
 	gettimeofday(&timeValInit, NULL);
 }
 

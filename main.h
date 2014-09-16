@@ -1,9 +1,9 @@
 /*! 
 * 	\file    main.h
-* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visitor student at MIT SSL
-* 	\date    August 2014
+* 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
+* 	\date    June 2014
 * 	\version 0.1
-* 	\brief   Headers of the main file
+* 	\brief   Headers of the main program
 *
 * 	License: The MIT License (MIT)
 * 	Copyright (c) 2014, Massachussets Institute of Technology

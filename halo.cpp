@@ -15,7 +15,8 @@ using namespace std;
 
 Halo::Halo() :
 isCamOpen(false), isOrfOpen(false),
-imgWidth(640), imgHeight(480), imgNum(0)
+imgWidth(640), imgHeight(480), imgNum(0),
+fusion_first(true)
 {}
 
 Halo::~Halo()
@@ -283,18 +284,30 @@ int Halo::saveAllImages()
 	return 0;
 }
 
-int Halo::capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud)
+int Halo::capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, string filename)
 {
-	// Capture images to merge
-	//Mat iL, iR, dT, iT, cT;
-	//this->captureAllRectifiedImages(iL, iR, dT, iT, cT);
+	// Variables declaration
+	Mat dT, iT, cT, iR, iL;
+	TimeStamp ts;
 	
-	// If we load from file
-	if (load_image) {
-		orf.capture3Dcloud(pointcloud, rgbcloud, this->load_num, ORF_CLOUD_DOWNSAMPLING);
-		this->load_num++;
+	// Init TimeStamp
+	ts.start();
+	
+	// Capture images
+	captureAllRectifiedImages(iL, iR, dT, iT, cT);
+	
+	// Perform fusion
+	if (fusion_first == true) {
+		t = new HaloTriangulator(stereo.projMatrixR, orf.intrinsicMatrix, stereo.intrinsicMatrixL, stereo.intrinsicMatrixR, filename);
+		pointcloud = t->fusion(dT, cT, iL, iR, rgbcloud, 0);
+		fusion_first = false;
+	} else {
+		pointcloud = t->fusion(dT, cT, iL, iR, rgbcloud, 0);
 	}
 	
+	// Stop TimeStamp
+	ts.stop();
+	INFO<<"Image capture and processing time: "<<ts.getProcTime()<<"ms"<<endl;
 	
 	return 0;
 }
@@ -304,13 +317,3 @@ int Halo::calib(string filename)
 {
 	haloCalib(filename);
 }
-
-// For each point:
-
-// Compute sigmaT from Ct
-
-// Compute sigmaS = variance from the second order neighborhood around p
-
-// sigmaW = min(sigmaT, sigmaS)
-
-// 

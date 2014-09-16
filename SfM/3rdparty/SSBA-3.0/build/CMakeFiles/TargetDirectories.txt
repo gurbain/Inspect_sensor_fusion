@@ -1,5 +1,0 @@
-/home/gabs48/src/testsVertigo/code/SSBA-3.0/build/CMakeFiles/V3D.dir
-/home/gabs48/src/testsVertigo/code/SSBA-3.0/build/Apps/CMakeFiles/bundle_common.dir
-/home/gabs48/src/testsVertigo/code/SSBA-3.0/build/Apps/CMakeFiles/bundle_varying.dir
-/home/gabs48/src/testsVertigo/code/SSBA-3.0/build/Apps/CMakeFiles/bundle_varying_nonlinlsq.dir
-/home/gabs48/src/testsVertigo/code/SSBA-3.0/build/CMakeFiles/colamd.dir

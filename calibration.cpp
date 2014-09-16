@@ -310,7 +310,7 @@ int Calibration::computeHalo3DPoints(vector<vector<Point2f> >& imagePointsL, vec
 {
 	// Load calibration matrices
 	int retVal;
-	Mat intrinsicMatrixL, intrinsicMatrixT, projMatrixR, rotMatrixR, rotMatrixL;
+	Mat intrinsicMatrixT, projMatrixL, projMatrixR, rotMatrixR, rotMatrixL;
 	FileStorage storage;
 	string OMfilename = "OM_calib.xml";
 	string ORFfilename = "ORF_calib.xml";
@@ -325,7 +325,7 @@ int Calibration::computeHalo3DPoints(vector<vector<Point2f> >& imagePointsL, vec
 			return -1;
 		}
 	}
-	storage["intrinsicMatrixL"]>>intrinsicMatrixL;
+	storage["projMatrixL"]>>projMatrixL;
 	storage["projMatrixR"]>>projMatrixR;
 	storage["T"]>>TRL;
 	storage["R"]>>RRL;
@@ -348,8 +348,8 @@ int Calibration::computeHalo3DPoints(vector<vector<Point2f> >& imagePointsL, vec
 	
 	// Variable declaration
 	vector<Point3d> pointcloudTot;
-	Triangulator OMtriangle(intrinsicMatrixL, projMatrixR);
-	InverseTriangulator ORFtriangle(intrinsicMatrixT);
+	StereoTriangulator OMtriangle(projMatrixR);
+	OrfTriangulator ORFtriangle(intrinsicMatrixT);
 	Point3d newPointORF, newPointOM, newPointORF2;
 #ifdef	CALIB_DEBUG
 	Point3d prevPointOM, prevPointORF;
@@ -377,13 +377,13 @@ int Calibration::computeHalo3DPoints(vector<vector<Point2f> >& imagePointsL, vec
 			if ((short)(savedConf[i].at<uchar>(imagePointsT[i][j].y, imagePointsT[i][j].x)) > THRESH_ORF_CONF) {
 				
 				// Triangulate and add stereo points
-				newPointOM = OMtriangle.triangulate((double)imagePointsL[i][j].x, (double)imagePointsR[i][j].x, (double)imagePointsL[i][j].y);
+				newPointOM = OMtriangle.triangulateStereo((double)imagePointsL[i][j].x, (double)imagePointsR[i][j].x, (double)imagePointsL[i][j].y);
 				newPointOM = Point3d(newPointOM.x/1000, newPointOM.y/1000, newPointOM.z/1000); // convert in meters
 				pointcloudOM.push_back(newPointOM);
 				
 				// Compute ORF coordinates (in meters) with depth map and inverting the pinhole equation
 				double r = ((savedDepth[i].at<unsigned short>(imagePointsT[i][j].y, imagePointsT[i][j].x)>>2) & 0x3FFF)  * 0.00061;
-				newPointORF = ORFtriangle.triangulate(imagePointsT[i][j].x, imagePointsT[i][j].y, r);
+				newPointORF = ORFtriangle.triangulateOrf(imagePointsT[i][j].x, imagePointsT[i][j].y, r);
 				pointcloudORF.push_back(newPointORF);
 #ifdef	CALIB_DEBUG
 				//Print results in case of debug

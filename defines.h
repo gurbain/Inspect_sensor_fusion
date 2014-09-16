@@ -33,14 +33,21 @@
 #define ORF_ROWS	144
 #define ORF_IMAGES	3
 
-#define ORF_CLOUD_DOWNSAMPLING	5
+#define ORF_FOV_H	56
+#define ORF_FOV_V	70
+
+#define ORF_CLOUD_DOWNSAMPLING	4
 
 // Stereo cameras defines
 #define RING_BUFFER_SIZE	10
 #define WAIT_TIMEOUT_MS		10000
 
+#define CAM_FOV_H	35
+#define CAM_FOV_V	35
+
 #define TEST_PROJ_CHANNEL_FILE "/opt/GogglesDaemon/TEST_PROJ_CHANNEL"
 #define CAMERA_FILE "/opt/GogglesOptics/CAMERA_FILE"
+
 
 typedef struct _UEYE_IMAGE
 {
@@ -77,6 +84,18 @@ typedef struct _UEYE_IMAGE
 // Utils defines
 #define DELTATMIN	150
 #define DELTATMAX	300
+
+// Fusion
+#define PI	3.14159265
+#define FUSION_DEBUG
+#define SIGMA_T_COEFF	15
+#define VAR_KER		2
+#define TAD_KER		2
+#define TAD_THRESH	128
+#define OM_PREC		0.000006
+#define OM_FOCUS	0.0028
+#define K_INT		4
+
 
 
 // Global variables

@@ -555,7 +555,7 @@ int ORF::capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, in
 	
 	// Capture images
 	this->captureRectifiedOrf(dT, iT, cT, t, num, filename);
-	InverseTriangulator ORFtriangle(this->intrinsicMatrix); //NB: the matrix always exist since we performed rectification just before
+	OrfTriangulator ORFtriangle(this->intrinsicMatrix); //NB: the matrix always exist since we performed rectification just before
 	
 	// Down sample
 	resize(dT, dT, Size((int)dT.cols/downsampling, (int)dT.rows/downsampling));
@@ -580,7 +580,7 @@ int ORF::capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, in
 				double z = ((dT.at<unsigned short>(i, j)>>2) & 0x3FFF)*0.00061;
 				if (z > 0.4 && z < 3) {
 					//cout<<"C: "<<(short)cT.at<uchar>(i, j)<<" D: "<<z<<" I: "<<(short)iT.at<uchar>(i, j)<<endl;
-					newPoint = ORFtriangle.triangulate(j*downsampling, i*downsampling, z);
+					newPoint = ORFtriangle.triangulateOrf(j*downsampling, i*downsampling, z);
 					pointcloud.push_back(newPoint);
 					rgbcloud.push_back(Vec3b((short)(channels[0].at<uchar>(i, j)), (short)(channels[1].at<uchar>(i, j)), (short)(channels[2].at<uchar>(i, j))));
 				}
