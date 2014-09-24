@@ -137,14 +137,14 @@ void init()
 	cout<<"This standalone software aims at data fusion from an ethernet"<<endl;
 	cout<<"SwissRanger SR4000 Optical Range Finder and a stereo Optics Mount"<<endl;
 	cout<<"(VERTIGO). A thermocamshould be added afterwards. The main features"<<endl;
-	cout<<"are calibration, feature matching, 3D registration and fusion"<<endl;
-	cout<<"and speed, inertia and pose estimation of a moving target\n"<<endl;
+	cout<<"are acqusition, calibration, 3D reconstruction from both sensors"<<endl;
+	cout<<"and sensor data fusion\n"<<endl;
 	cout<<"PID of the process: "<<(int)getpid()<<endl;
 	cout<<"Compiled  On: \t"<<__DATE__<<" at "<<__TIME__<<" UTC"<<endl;
 	cout<<"          With:\tGCC: "<< __VERSION__<<endl;
 	struct utsname ver;
 	uname(&ver);
-	cout<<"\t\tUbuntu: Trusty 14.04 - kernel "<<ver.release<<endl;
+	cout<<"\t\tLinux Kernel: "<<ver.release<<endl;
 	cout<<"\t\tOpenCV: "<<CV_VERSION<<endl;
 	cout<<"Author: "<<__AUTHOR__<<endl;
 	cout<<"Space Systems Lab (SSL) - INSPECT project"<<endl;

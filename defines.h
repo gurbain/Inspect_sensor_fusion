@@ -36,7 +36,7 @@
 #define ORF_FOV_H	56
 #define ORF_FOV_V	70
 
-#define ORF_CLOUD_DOWNSAMPLING	4
+#define ORF_CLOUD_DOWNSAMPLING	5
 
 // Stereo cameras defines
 #define RING_BUFFER_SIZE	10
@@ -65,7 +65,7 @@ typedef struct _UEYE_IMAGE
 // Calibration defines
 #define CALIB_DEBUG
 
-#define ORF_NUMBER_BOARDS	10
+#define ORF_NUMBER_BOARDS	15
 #define STEREO_NUMBER_BOARDS	20
 #define HALO_NUMBER_BOARDS	5
 
@@ -90,7 +90,7 @@ typedef struct _UEYE_IMAGE
 #define FUSION_DEBUG
 #define SIGMA_T_COEFF	15
 #define VAR_KER		2
-#define TAD_KER		2
+#define TAD_KER		5
 #define TAD_THRESH	128
 #define OM_PREC		0.000006
 #define OM_FOCUS	0.0028

@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 	signal(SIGINT,exit_handler);
 	
 	// Initialize
-	int retVal = orf.init("../examples/orf_calib_dataset/");
+	int retVal = orf.init();
 	if (retVal !=0 )
 		exit_handler(0);
 	

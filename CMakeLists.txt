@@ -72,8 +72,8 @@ ADD_DEFINITIONS(${PCL_DEFINITIONS})
 TARGET_LINK_LIBRARIES(inspect_sensors ${BOOST_LIBRARIES})
 
 # Build Main program
-add_executable(Main main.cpp)
-target_link_libraries(Main inspect_sensors)
+# add_executable(Main main.cpp)
+# target_link_libraries(Main inspect_sensors)
 
 # Build examples
 # add_executable(orfCapture examples/orfCapture.cpp)
@@ -86,6 +86,8 @@ target_link_libraries(Main inspect_sensors)
 # target_link_libraries(orfFile3DCloud inspect_sensors)
 # add_executable(orfMeasDepth examples/orfMeasDepth.cpp)
 # target_link_libraries(orfMeasDepth inspect_sensors)
+# add_executable(orfMeasXYZ examples/orfMeasXYZ.cpp)
+# target_link_libraries(orfMeasXYZ inspect_sensors)
 # add_executable(orfCalib examples/orfCalib.cpp)
 # target_link_libraries(orfCalib inspect_sensors)
 # 
@@ -95,6 +97,12 @@ target_link_libraries(Main inspect_sensors)
 # target_link_libraries(stereoSave inspect_sensors)
 # add_executable(stereoCalib examples/stereoCalib.cpp)
 # target_link_libraries(stereoCalib inspect_sensors)
+add_executable(stereoProject examples/stereoProject.cpp)
+target_link_libraries(stereoProject inspect_sensors)
+add_executable(stereoProject2 examples/stereoProject2.cpp)
+target_link_libraries(stereoProject2 inspect_sensors)
+add_executable(stereoProjectHaloPoint examples/stereoProjectHaloPoint.cpp)
+target_link_libraries(stereoProjectHaloPoint inspect_sensors)
 # 
 # add_executable(haloSave examples/haloSave.cpp)
 # target_link_libraries(haloSave inspect_sensors)

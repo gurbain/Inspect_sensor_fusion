@@ -897,3 +897,19 @@ unsigned int Cameras::saveTwoImages()
 	
 	return 0;
 }
+
+
+int Cameras::capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, int num, int downsampling, string filename)
+{
+	// Variables declaration
+	Mat iL, iR;
+	TimeStamp t;
+	Point3d newPoint;
+	
+	// Capture images
+	this->captureTwoRectifiedImages(iL, iR, t, num, filename);
+	
+	// TODO BGM
+	
+	return 0;
+}

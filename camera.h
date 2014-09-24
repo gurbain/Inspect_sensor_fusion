@@ -137,6 +137,7 @@ class Cameras : virtual public Calibration {
 		unsigned int saveTwoRectifiedImages();
 		unsigned int saveTwoImages();
 		int calib(string filename="OM_calib.xml");
+		int capture3Dcloud(vector<Point3d>& pointcloud, vector<Vec3b>& rgbcloud, int num=0, int downsampling=4, string filename="OM_calib.xml");
 		
 		void parseParameterFile();
 };

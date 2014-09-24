@@ -42,14 +42,24 @@ int main(int argc, char **argv) {
 	
 	// Main loop
 	while(true) {
-		// Capture orf images
+		// Capture orf rectified images
 		Mat dT, iT, cT;
 		TimeStamp t;
 		retVal = orf.captureRectifiedOrf(dT, iT, cT, t);
 		if (retVal !=0 )
 			exit_handler(0);
 		
+		// Capture orf images
+		Mat dTr, iTr, cTr;
+		TimeStamp tr;
+		retVal = orf.captureOrf(dTr, iTr, cTr, tr);
+		if (retVal !=0 )
+			exit_handler(0);
+		
 		// Display images
+		imshow("Depth Rectified", dTr);
+		imshow("Intensity Rectified", iTr);
+		imshow("Confidency Rectified", cTr);
 		imshow("Depth", dT);
 		imshow("Intensity", iT);
 		imshow("Confidency", cT);
