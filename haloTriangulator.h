@@ -38,7 +38,7 @@ class HaloTriangulator  {
 private:
 	OrfTriangulator *orf;
 	StereoTriangulator *stereo;
-	StereoTriangulator *stereo2;
+	StereoTriangulator2 *stereo2;
 	
 	// Calibration matrices
 	Mat MLT, MTL, MRT;

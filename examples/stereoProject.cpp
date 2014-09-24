@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 	init();
 	
 	// Get stereo calibration matrices
-	Mat intrinsicL, intrinsicR, projMatrixStereo;
+	Mat intrinsicL, intrinsicR, projMatrixR, projMatrixL;
 	FileStorage storage;
 	int retVal = storage.open("OM_calib.xml", FileStorage::READ);
 	if (retVal != 1) {
@@ -40,11 +40,12 @@ int main(int argc, char **argv) {
 	}
 	storage["intrinsicL"]>>intrinsicL;
 	storage["intrinsicR"]>>intrinsicR;
-	storage["projMatrixR"]>>projMatrixStereo;
+	storage["projMatrixR"]>>projMatrixR;
+	storage["projMatrixL"]>>projMatrixL;
 	storage.release();
 	
 	// Create triangulator object
-	StereoTriangulator stereo(projMatrixStereo);
+	StereoTriangulator stereo(projMatrixR);
 	
 	// Create orginal world pointcloud in L coordinate system (in meters)
 	vector<Point3d> p_init;
@@ -78,8 +79,7 @@ int main(int argc, char **argv) {
 	vector<Vec3b> rgb_final;
 	
 	for (int i=0; i<p_init.size(); i++) {
-		Point3d coord;
-		coord = stereo.triangulateStereo((double)p_inter_L[i].x, (double)p_inter_R[i].x, (double)p_inter_L[i].y);
+		Point3d coord = stereo.triangulateStereo((double)p_inter_L[i].x, (double)p_inter_R[i].x, (double)p_inter_L[i].y);
 		p_final.push_back(Point3d(coord.x/1000, coord.y/1000, coord.z/1000));
 		rgb_final.push_back(Vec3b(0,255,0));
 	}	

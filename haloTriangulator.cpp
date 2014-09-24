@@ -79,14 +79,42 @@ HaloTriangulator::HaloTriangulator(Mat& projMatrixR_, Mat& intrinsicT_, Mat& int
 		storage.release();
 	}
 	
+	Mat R, T;
+	FileStorage storage;
+	int retVal = storage.open("OM_calib.xml", FileStorage::READ);
+	if (retVal != 1) {
+		INFO<<"STEREO Calibration file not found! Calibration needed!"<<endl;
+		exit(1);
+	}
+	storage["R"]>>R;
+	storage["T"]>>T;
+	storage.release();
+	Mat rotMatrixL = Mat::zeros(3,4, CV_64F);
+	rotMatrixL.at<double>(0,0) = 1;
+	rotMatrixL.at<double>(1,1) = 1;
+	rotMatrixL.at<double>(2,2) = 1;
+	Mat rotMatrixR = Mat::zeros(3,4, CV_64F);
+	rotMatrixR.at<double>(0,0) = R.at<double>(0,0);
+	rotMatrixR.at<double>(0,1) = R.at<double>(0,1);
+	rotMatrixR.at<double>(0,2) = R.at<double>(0,2);
+	rotMatrixR.at<double>(0,3) = T.at<double>(0);
+	rotMatrixR.at<double>(1,0) = R.at<double>(1,0);
+	rotMatrixR.at<double>(1,1) = R.at<double>(1,1);
+	rotMatrixR.at<double>(1,2) = R.at<double>(1,2);
+	rotMatrixR.at<double>(1,3) = T.at<double>(1);
+	rotMatrixR.at<double>(2,0) = R.at<double>(2,0);
+	rotMatrixR.at<double>(2,1) = R.at<double>(2,1);
+	rotMatrixR.at<double>(2,2) = R.at<double>(2,2);
+	rotMatrixR.at<double>(2,3) = T.at<double>(2);
+	
 	intrinsicT = intrinsicT_;
 	intrinsicL = intrinsicL_;
 	intrinsicR = intrinsicR_;
 	projMatrixStereo = projMatrixR_;
 	
 	this->computeInterParams();
-	//stereo = new StereoTriangulator(intrinsicL, intrinsicR);
-	stereo2 = new StereoTriangulator(projMatrixStereo);
+	stereo = new StereoTriangulator(projMatrixStereo);
+	stereo2 = new StereoTriangulator2(rotMatrixL, rotMatrixR, intrinsicL, intrinsicR);
 	orf = new OrfTriangulator(intrinsicT);
 }
 
@@ -141,6 +169,7 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 	vector<double> ci;
 	double prob_stereo_sum;
 	vector<double> prob_orf, prob_stereo_temp, prob_stereo, prob_joint;
+	vector<double> depth_saved;
 	
 	// Algorithm parameters
 	vector<Point3d> pointcloud, pointcloudf;
@@ -215,12 +244,14 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 						keyL.clear();
 						keyR.clear();
 						dist.clear();
+						depth_saved.clear();
 						m = 0;
 						
 						// 3.2 Create the interval and begin a loop
-						step= pow(d, 2) / (baseline * OM_FOCUS) * OM_PREC / K_INT;
+						step= pow(d, 2) / (baseline * OM_FOCUS) * OM_PREC / K_INT * 4;
 
-						di = d - 3 * sigma_w;
+						di = d;
+						bool di_inc = true;
 						do {
 							// -- STEP 4: Compute ORF probability --
 							prob_orf.push_back(exp(- pow((di - d), 2)/(2*pow(sigma_w, 2))) / sqrt(2 * PI * pow(sigma_w, 2)));
@@ -234,10 +265,15 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 							newPointLi = MLT * newPointTi;
 							
 							// 5.3 Project into uv coordinates
-							stereo2->reprojectStereo(camCoordL, camCoordR, newPointLi.at<double>(0,0)*1000, newPointLi.at<double>(0,1)*1000, newPointLi.at<double>(0,2)*1000);
+							stereo->reprojectStereo(camCoordL, camCoordR, newPointLi.at<double>(0)*1000, newPointLi.at<double>(1)*1000, newPointLi.at<double>(2)*1000);
+// 							newPointLi.at<double>(0,0) = newPointLi.at<double>(0,0) * 1000;
+// 							newPointLi.at<double>(0,1) = newPointLi.at<double>(0,1) * 1000;
+// 							newPointLi.at<double>(0,2) = newPointLi.at<double>(0,2) * 1000;
+// 							stereo2->reprojectStereoMat(camCoordL, camCoordR, newPointLi);
+							
 #ifdef FUSION_DEBUG
 							// 5.4 Reproject all stereo points in L coordinates
-							newPointStereoL = stereo2->triangulateStereoMat(camCoordL.x, camCoordR.x, camCoordL.y);
+							newPointStereoL = stereo2->triangulateStereoLinear(camCoordL, camCoordR);
 							
 							// 5.5 Move from L to T
 							newPointStereoL.at<double>(0,0) = newPointStereoL.at<double>(0,0) / 1000;
@@ -245,11 +281,17 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 							newPointStereoL.at<double>(0,2) = newPointStereoL.at<double>(0,2) / 1000;
 							newPointStereoT = MTL * newPointStereoL;
 							
+// 							circle(iL2, Point(camCoordL.x, camCoordL.y), 2, (255,255,255));
+// 							circle(iR2, Point(camCoordR.x, camCoordR.y), 2, (255,255,255));
+// 							imshow("aa", iL2);
+// 							imshow("bb", iR2);
+// 							cvWaitKey(0);
+							
 							// 5.6 Add in point cloud for comparaison
-						//	pointcloud.push_back(Point3d(newPointStereoT.at<double>(0,0), newPointStereoT.at<double>(0,1), newPointStereoT.at<double>(0,2)));
-							//rgbcloud.push_back(Vec3b(0, 255, 0));
-							//cout<<"(u,v) in L: ("<<camCoordL.x<<", "<<camCoordL.y<<")\t(u,v) in R: ("<<camCoordR.x<<", "<<camCoordR.y<<")"<<endl;
-							//cout<<newPointStereoT<<" and "<<newPointTi<<" and "<<norm(newPointStereoT-newPointTi)<<endl;
+// 							pointcloud.push_back(Point3d(newPointStereoT.at<double>(0,0), newPointStereoT.at<double>(0,1), newPointStereoT.at<double>(0,2)));
+// 							rgbcloud.push_back(Vec3b(0, 255, 0));
+// 							cout<<"(u,v) in L: ("<<camCoordL.x<<", "<<camCoordL.y<<")\t(u,v) in R: ("<<camCoordR.x<<", "<<camCoordR.y<<")"<<endl;
+// 							cout<<newPointStereoT<<" and "<<newPointTi<<" and "<<norm(newPointStereoT-newPointTi)<<endl;
 #endif
 							// -- STEP 6: Compute stereo probability --
 							//if ( camCoordL.x > TAD_KER && camCoordL.y > TAD_KER && camCoordL.x < (iL.rows - TAD_KER) && camCoordL.y < (iL.cols - TAD_KER) ) {
@@ -271,31 +313,43 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 							
 							// -- STEP 7: Compute joint probability --
 							prob_joint.push_back(prob_stereo[m]*prob_orf[m]);
+#ifdef FUSION_DEBUG
 							cout<<"Prob ORF: "<<prob_orf[m]<<"   \tAnd Prob Stereo: "<<prob_stereo[m]<<"\tAnd Prob Joint: "<<prob_joint[m]<<endl;
+#endif
 							
 							m++;
-							di = di + step;
-						} while (di < d + 3 * sigma_w);
+							depth_saved.push_back(di);
+							if (di_inc == true) {
+								di = di + step;
+								if (di > d + 3 * sigma_w) {
+									di = d;
+									di_inc = false;
+								}
+							} else {
+								di = di - step;
+							}
+						} while (di_inc == true || di > d - 3 * sigma_w);
 						
 						// -- STEP 8: Select depth which maximize probability --
 						vector<double>::iterator prob_max = max_element(prob_joint.begin(), prob_joint.end());
 						int prob_index = distance(prob_joint.begin(), prob_max);
-						double prob_depth = d - 3 * sigma_w + prob_index * step;
+						
+						double prob_depth = depth_saved[prob_index];
 #ifdef FUSION_DEBUG
 // 						DEBUG<<"INTERVAL: "<<6*sigma_w<<"\tSTEP: "<<step<<endl;
-						vector<double>::iterator prob_orf_max = max_element(prob_orf.begin(), prob_orf.end());
-						int prob_orf_index = distance(prob_orf.begin(), prob_orf_max);
-						vector<double>::iterator prob_stereo_max = max_element(prob_stereo.begin(), prob_stereo.end());
-						int prob_stereo_index = distance(prob_stereo.begin(), prob_stereo_max);
-						DEBUG<<"Point ("<<i<<","<<j<<"): \tMax joint index: "<<prob_index<<" \tMax orf index: "<<prob_orf_index<<"\tMax stereo index: "<<prob_stereo_index<<endl;
- 						//cout<<"Point ("<<i<<","<<j<<"):\tMax joint prob: "<<*prob_max<<"    \tPosition: "<<prob_index<<"\tCorresponding depth: "<<prob_depth<<endl;
+// 						vector<double>::iterator prob_orf_max = max_element(prob_orf.begin(), prob_orf.end());
+// 						int prob_orf_index = distance(prob_orf.begin(), prob_orf_max);
+// 						vector<double>::iterator prob_stereo_max = max_element(prob_stereo.begin(), prob_stereo.end());
+// 						int prob_stereo_index = distance(prob_stereo.begin(), prob_stereo_max);
+// 						DEBUG<<"Point ("<<i<<","<<j<<"): \tMax joint index: "<<prob_index<<" \tMax orf index: "<<prob_orf_index<<"\tMax stereo index: "<<prob_stereo_index<<endl;
+//  						DEBUG<<"Point ("<<i<<","<<j<<"): \tOriginal ORF depth"<<d<<"m  \t\tNew depth: "<<prob_depth<<"m"<<endl;
+// 						pointcloud.push_back(newPointT);
+// 						rgbcloud.push_back(Vec3b(255,0,0));
 #endif
 						// -- STEP 9: Transform to orthonormal coordinate system --
 						newPointFus = orf->triangulateOrf(j*ORF_CLOUD_DOWNSAMPLING, i*ORF_CLOUD_DOWNSAMPLING, prob_depth);
 						dF.at<unsigned short>(i,j) = ((unsigned short)(prob_depth / 0.00061))<<2;
 						
-						pointcloud.push_back(newPointT);
-						rgbcloud.push_back(Vec3b(255,0,0));
 						pointcloud.push_back(newPointFus);
 						rgbcloud.push_back(Vec3b(0,0,255));
 					
