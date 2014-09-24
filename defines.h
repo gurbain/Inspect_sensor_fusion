@@ -36,7 +36,7 @@
 #define ORF_FOV_H	56
 #define ORF_FOV_V	70
 
-#define ORF_CLOUD_DOWNSAMPLING	5
+#define ORF_CLOUD_DOWNSAMPLING	10
 
 // Stereo cameras defines
 #define RING_BUFFER_SIZE	10
@@ -80,6 +80,7 @@ typedef struct _UEYE_IMAGE
 // Triangulator defines
 #define TRI_MONO	0
 #define TRI_STEREO	1
+#define IT_EPSILON	0.001
 
 // Utils defines
 #define DELTATMIN	150

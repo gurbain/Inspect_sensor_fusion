@@ -134,9 +134,8 @@ HaloTriangulator::HaloTriangulator(Mat& intrinsicT_, Mat& intrinsicL_, Mat& intr
 }
 
 
-vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vector<Vec3b>& rgbcloud, int flag)
+vector<Point3d> HaloTriangulator::fusionDebug(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vector<Vec3b>& rgbcloud, int flag)
 {	
-	#define ORF_CLOUD_DOWNSAMPLING	40
 	// TODO Correct downsampling
 	resize(dT, dT, Size((int)dT.cols/ORF_CLOUD_DOWNSAMPLING, (int)dT.rows/ORF_CLOUD_DOWNSAMPLING));
 	resize(cT, cT, Size((int)cT.cols/ORF_CLOUD_DOWNSAMPLING, (int)cT.rows/ORF_CLOUD_DOWNSAMPLING));
@@ -248,7 +247,7 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 						m = 0;
 						
 						// 3.2 Create the interval and begin a loop
-						step= pow(d, 2) / (baseline * OM_FOCUS) * OM_PREC / K_INT * 4;
+						step= pow(d, 2) / (baseline * OM_FOCUS) * OM_PREC / K_INT;
 
 						di = d;
 						bool di_inc = true;
@@ -314,7 +313,7 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 							// -- STEP 7: Compute joint probability --
 							prob_joint.push_back(prob_stereo[m]*prob_orf[m]);
 #ifdef FUSION_DEBUG
-							cout<<"Prob ORF: "<<prob_orf[m]<<"   \tAnd Prob Stereo: "<<prob_stereo[m]<<"\tAnd Prob Joint: "<<prob_joint[m]<<endl;
+// 							cout<<"Prob ORF: "<<prob_orf[m]<<"   \tAnd Prob Stereo: "<<prob_stereo[m]<<"\tAnd Prob Joint: "<<prob_joint[m]<<endl;
 #endif
 							
 							m++;
@@ -370,6 +369,7 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 // 			}
 		}
 	}
+#ifdef FUSION_DEBUG
 // 	DEBUG<<"Sigmaw max: "<<sigma_w_max<<"\tSigma_t max: "<<sigma_t_max<<"\tSigma_s max: "<<sigma_s_max<<endl;
 // 	resize(sigma_s_m, sigma_s_m, Size((int)sigma_s_m.cols*ORF_CLOUD_DOWNSAMPLING, (int)sigma_s_m.rows*ORF_CLOUD_DOWNSAMPLING));
 // 	imshow("sigma_s_m", sigma_s_m);
@@ -378,43 +378,169 @@ vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vec
 	
 	
 	// Display point cloud
-	Mat R = Mat::zeros(3, 3, CV_64F);
-	R.at<double>(0,0) = 1;
-	R.at<double>(1,1) = 1;
-	R.at<double>(2,2) = 1;
+// 	Mat R = Mat::zeros(3, 3, CV_64F);
+// 	R.at<double>(0,0) = 1;
+// 	R.at<double>(1,1) = 1;
+// 	R.at<double>(2,2) = 1;
 // 	visualizerShowCamera(R, Vec3f(0,0,0), 255,0,0,0.02,"ORF camera"); 
 // 	visualizerShowCamera(R, Vec3f(-0.25, 0, 0), 0,255,0,0.02,"Stereo camera");
 // 	RunVisualization(pointcloudf, rgbcloudf);
-	visualizerShowCamera(R, Vec3f(0,0,0), 255,0,0,0.02,"ORF camera"); 
-	visualizerShowCamera(R, Vec3f(-0.25, 0, 0), 0,255,0,0.02,"Stereo camera");
-	RunVisualization(pointcloud, rgbcloud);
+// 	visualizerShowCamera(R, Vec3f(0,0,0), 255,0,0,0.02,"ORF camera"); 
+// 	visualizerShowCamera(R, Vec3f(-0.25, 0, 0), 0,255,0,0.02,"Stereo camera");
+// 	RunVisualization(pointcloud, rgbcloud);
+#endif
 	return pointcloud;
 }
 
-
-Point2d HaloTriangulator::reprojectT(double x, double y, double z)
-{
-	Point2d p;
+vector<Point3d> HaloTriangulator::fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vector<Vec3b>& rgbcloud, int flag)
+{	
+	// TODO Correct downsampling
+	resize(dT, dT, Size((int)dT.cols/ORF_CLOUD_DOWNSAMPLING, (int)dT.rows/ORF_CLOUD_DOWNSAMPLING));
+	resize(cT, cT, Size((int)cT.cols/ORF_CLOUD_DOWNSAMPLING, (int)cT.rows/ORF_CLOUD_DOWNSAMPLING));
 	
-	return p;
-}
-
-
-Point2d HaloTriangulator::reprojectL(double x, double y, double z)
-{
-	Point2d p;
+	// Probability parameters
+	double sigma_i= estimateNoiseVariance(iL, iR);
+	double meanD, sigma_t, sigma_s, sigma_w;
+	int meanIL, meanIR;
+	vector<double> ci;
+	double prob_stereo_sum;
+	vector<double> prob_orf, prob_stereo_temp, prob_stereo, prob_joint;
+	vector<double> depth_saved;
 	
-	return p;
-}
+	// Algorithm parameters
+	vector<Point3d> pointcloud, pointcloudf;
+	vector<Vec3b> rgbcloudf;
+	double d, di, step, m;
+	int sum, sum1, sum2;
+	Point3d newPointT, newPointFus;
+	Mat newPointLi, newPointTi, newPointRi;
+	Point2d camCoordL, camCoordR;
 
-
-Point2d HaloTriangulator::reprojectR(double x, double y, double z)
-{
-	Point2d p;
 	
-	return p;
-}
+	// For each points of the image
+	for (int i=0; i<dT.rows; i++) {
+		for (int j=0; j<dT.cols; j++) {
+			
+			// -- STEP 0 : Compute point coordinates --
+			d = ((dT.at<unsigned short>(i, j)>>2) & 0x3FFF)*0.00061;
+			newPointT = orf->triangulateOrf(j*ORF_CLOUD_DOWNSAMPLING, i*ORF_CLOUD_DOWNSAMPLING, d);
+			
+			// -- STEP 1: if the point is framed by the three cameras --
+			if ( newPointT.z > (b *a1)/(a1 + a2) && (newPointT.z > 0.4 && newPointT.z < 3)) {
+				if ( -(newPointT.z - b)/a2 < newPointT.x){
+					if ( abs(newPointT.y) < newPointT.z/max(a3, a4)) {
+						
+						// -- STEP 2: Calculate variances --
+						
+						// 2.1 Compute sigma_t as a function of confidency
+						sigma_t = (((65535 - cT.at<unsigned short>(i,j))>>2) & 0x3FFF)*0.00061/10;
+						
+						// 2.2 Compute sigma_s as a function of neighborhood
+						if ( i > VAR_KER && j > VAR_KER && i < (dT.rows - VAR_KER) && j < (dT.cols - VAR_KER) ) {
+							// 2.2.1 Compute map of mean values with kernel
+							sum = 0.0;
+							for(int k=-VAR_KER; k<VAR_KER+1; k++) {
+								for(int l=-VAR_KER; l<VAR_KER+1; l++) {
+									sum = sum + dT.at<unsigned short>(i+k,j+l);
+								}
+							}
+							meanD = sum/((2*VAR_KER+1)*(2*VAR_KER+1));
+							
+							// 2.2.2 Compute map of variance values with kernel
+							sum = 0.0;
+							for(int k=-VAR_KER; k<VAR_KER+1; k++) {
+								for(int l=-VAR_KER; l<VAR_KER+1; l++) {
+									sum = sum + pow((dT.at<unsigned short>(i+k,j+l) - meanD), 2);
+									//cout<<j<<". Sum: "<<sum<<" and dist: "<<(dT.at<unsigned short>(i+k,j+l) - meanD)<<endl;
+								}
+							}
+							sigma_s = (((unsigned short)sqrt(sum/((2*VAR_KER+1)*(2*VAR_KER+1)))>>2) & 0x3FFF)*0.00061/4;
+							
+						}
+						
+						// 2.3 Compute sigma_w as the max of sigma_s and sigma_t
+						sigma_w = max(sigma_t, sigma_s) / 4;
+						
+						// -- STEP 3: Create a discrete interval --
+						
+						// 3.1 Initialize
+						prob_orf.clear();
+						prob_stereo_temp.clear();
+						prob_stereo.clear();
+						prob_joint.clear();
+						ci.clear();
+						depth_saved.clear();
+						m = 0;
+						
+						// 3.2 Create the interval and begin a loop
+						step= pow(d, 2) / (baseline * OM_FOCUS) * OM_PREC / K_INT;
 
+						di = d;
+						bool di_inc = true;
+						do {
+							// -- STEP 4: Compute ORF probability --
+							prob_orf.push_back(exp(- pow((di - d), 2)/(2*pow(sigma_w, 2))) / sqrt(2 * PI * pow(sigma_w, 2)));
+							
+							// -- STEP 5: Recover Stereo coordinates --
+							
+							// 5.1 Get values in T coordinate system
+							newPointTi = orf->triangulateOrfMat(j*ORF_CLOUD_DOWNSAMPLING, i*ORF_CLOUD_DOWNSAMPLING, di);
+							
+							// 5.2 Move from T to L
+							newPointLi = MLT * newPointTi;
+							
+							// 5.3 Project into uv coordinates
+							stereo->reprojectStereo(camCoordL, camCoordR, newPointLi.at<double>(0)*1000, newPointLi.at<double>(1)*1000, newPointLi.at<double>(2)*1000);
+							
+							// -- STEP 6: Compute stereo probability --
+							
+							// 6.1 Compute sum of absolute differences
+							double sum3 = 0.0;
+							for(int k=-TAD_KER; k<TAD_KER+1; k++) {
+								for(int l=-TAD_KER; l<TAD_KER+1; l++) {
+									sum3 = sum3 + abs((double)iL.at<uchar>(camCoordL.y+k,camCoordL.x+l)/255.0 - (double)iR.at<uchar>(camCoordL.y+k,camCoordL.x+l)/255.0);
+								}
+							}
+							
+							// 6.2 Threshold comparaison 
+							ci.push_back(min((int)sum3, 25));
+							
+							// 6.3 Compute stereo probability
+							prob_stereo.push_back(exp(- ci[m] / sigma_i));;
+							
+							// -- STEP 7: Compute joint probability --
+							prob_joint.push_back(prob_stereo[m]*prob_orf[m]);
+							
+							m++;
+							depth_saved.push_back(di);
+							if (di_inc == true) {
+								di = di + step;
+								if (di > d + 3 * sigma_w) {
+									di = d;
+									di_inc = false;
+								}
+							} else {
+								di = di - step;
+							}
+						} while (di_inc == true || di > d - 3 * sigma_w);
+						
+						// -- STEP 8: Select depth which maximize probability --
+						vector<double>::iterator prob_max = max_element(prob_joint.begin(), prob_joint.end());
+						int prob_index = distance(prob_joint.begin(), prob_max);
+						double prob_depth = depth_saved[prob_index];
+						
+						// -- STEP 9: Transform to orthonormal coordinate system --
+						newPointFus = orf->triangulateOrf(j*ORF_CLOUD_DOWNSAMPLING, i*ORF_CLOUD_DOWNSAMPLING, prob_depth);
+						pointcloud.push_back(newPointFus);
+						rgbcloud.push_back(Vec3b(0,0,255));
+					}
+				}
+			}
+		}
+	}
+
+	return pointcloud;
+}
 
 void HaloTriangulator::computeInterParams()
 {

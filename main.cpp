@@ -24,6 +24,7 @@ Halo halo;
 
 // Create a CTRL-C handler
 void exit_handler(int s){
+	InterruptVisualizationThread();
 	halo.close();
 	exit(1);
 }
@@ -41,7 +42,8 @@ int main(int argc, char **argv) {
 		exit_handler(0);
 	
 	// Launch vizualization (you can give the pixel dimensions)
-	//RunVisualizationThread(2);
+	RunVisualizationThread(2);
+	
 	// Main loop
 	while(true) {
 		// Capture cloud
@@ -51,13 +53,14 @@ int main(int argc, char **argv) {
 		if (retVal !=0 )
 			exit_handler(0);
 		
+		sleep(1);
 		
 		// Display cloud
 		ShowClouds(pointcloud, rgbcloud);
 	}
 	
 	// Wait for updating vizualization
-	//WaitForVisualizationThread();
+	WaitForVisualizationThread();
 	
 	// Close cameras
 	halo.close();

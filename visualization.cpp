@@ -311,16 +311,19 @@ void RunVisualizationOnly() {
 boost::thread* _t = NULL;
 void RunVisualizationThread(int pt_size) {
 	pt_gu_size = pt_size;
-	_t = NULL;
 	_t = new boost::thread(RunVisualizationOnly);
 }
 
 void WaitForVisualizationThread() {
 	_t->join();
+	delete _t;
+	_t = NULL;
 }
 
 void InterruptVisualizationThread() {
 	_t->interrupt();
+	delete _t;
+	_t = NULL;
 }
 
 

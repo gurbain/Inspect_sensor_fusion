@@ -60,20 +60,9 @@ public:
 	HaloTriangulator(Mat& projMatrixR_, Mat& intrinsicT_, Mat& intrinsicL_, Mat& intrinsicR_, string filenameHALO="HALO_calib.xml");
 	HaloTriangulator(Mat& intrinsicT_, Mat& intrinsicL_, Mat& intrinsicR_, Mat& MLT_, Mat& MTL_, Mat& MRT_);
 	
+	// Fusion
 	vector<Point3d> fusion(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vector<Vec3b>& rgbcloud, int flag=NONE_FLAG);
-	Point2d reprojectT(double x, double y, double z);
-	Point2d reprojectT(const Point3d & p) {
-		return reprojectT(p.x, p.y, p.z);
-	}
-	Point2d reprojectL(double x, double y, double z);
-	Point2d reprojectL(const Point3d & p) {
-		return reprojectL(p.x, p.y, p.z);
-	}
-	Point2d reprojectR(double x, double y, double z);
-	Point2d reprojectR(const Point3d & p) {
-		return reprojectR(p.x, p.y, p.z);
-	}
-
+	vector<Point3d> fusionDebug(Mat& dT, Mat& cT, Mat& iL, Mat& iR, vector<Vec3b>& rgbcloud, int flag=NONE_FLAG);
 };
 
 #endif
