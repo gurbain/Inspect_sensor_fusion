@@ -3,7 +3,7 @@
 * 	\author  Gabriel Urbain <gurbain@mit.edu> - Visiting student at MIT SSL
 * 	\date    September 2014
 * 	\version 0.1
-* 	\brief   Example showing how to project and triangulate point in stereo
+* 	\brief   Example showing how to project and triangulate point with a linear method for STEREO cameras
 *
 * 	This example shows how to project a point from its XYZ metric coordinates in the left camera frame
 * 	to its uv pixel coordinates in both L and R with the pinhole equation.

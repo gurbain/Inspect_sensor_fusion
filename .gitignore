@@ -19,3 +19,9 @@
 *.exe
 *.out
 *.app
+
+# Other
+.directory
+.kateproject
+.kateproject.d/
+build/
